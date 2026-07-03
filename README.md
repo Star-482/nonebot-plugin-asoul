@@ -22,9 +22,28 @@
 | `/订阅列表` | — | 查看当前群已订阅的成员 |
 | `/我的id` | — | 查看自己在 QQ 官方机器人下的 openid |
 
-### 嘉然宠物养成（开发中）
+### 嘉然宠物养成
 
-基于属性衰减 + 等级 + 服装解锁的轻量养成系统，目前处于开发阶段，指令与机制可能随时调整，暂不在此文档中详述。设计与 API 见 `nonebot_plugin_asoul/diana/API_REFERENCE.md`。
+基于属性衰减 + 等级 + 服装解锁的轻量养成系统。指令按功能分组：
+
+| 类别 | 指令 | 别名 | 说明 |
+| --- | --- | --- | --- |
+| 状态 | `/然然状态` | `状态`、`我的然然`、`然然信息` | 查看宠物状态卡片 |
+| 衣柜 | `/然然衣柜` | `服装`、`衣柜`、`换装列表` | 查看已拥有服装 |
+| 喂食 | `/喂食 <食物>` | `吃`、`喂`、`投喂` | 喂食以恢复饱腹度 |
+| 玩耍 | `/玩耍 <游戏>` | `玩` | 玩耍提升心情 |
+| 打工 | `/打工 <工作>` | `直播`、`工作` | 打工赚取嘉心糖币 |
+| 换装 | `/换装 [服装名]` | `换上`、`穿` | 换装，不填则随机 |
+| 解锁 | `/解锁 [服装名]` | `购买` | 查看或购买服装 |
+| 互动 | `/互动 <动作>` | `撒娇`、`和然然互动` | 社交互动提升亲密度 |
+| 日常 | `/日常 <活动>` | `日常活动` | 日常活动 |
+| 聊天 | `/然然 <话题>` | `然然聊天` | 和然然聊天 |
+| 签到 | `/签到` | `嘉心糖签到`、`每日签到` | 每日签到，按全用户排名分层奖励 |
+| 帮助 | `/然然帮助` | `宠物帮助`、`然然指令` | 查看所有指令 |
+
+签到奖励按全用户排名分层：🥇 第 1 名 50 币 / 🥈 第 2-3 名 30 币 / 🥉 第 4-10 名 20 币 / 第 11 名起 10 币。连续签到天数独立于互动 streak，每日排名数据按日分文件保存在 `diana/checkin/` 下。
+
+底层设计与模块结构见 `nonebot_plugin_asoul/diana/API_REFERENCE.md`。
 
 ### 管理员（SUPERUSER）
 
@@ -75,12 +94,14 @@ data/
 │   ├── live_subscription/        # 开播订阅持久化（自动生成）
 │   │   ├── upstreams.json        # 预定义 up主 UID → 名称
 │   │   └── subscriptions.json    # 群订阅关系
+│   ├── diana/
+│   │   ├── saves/                # 嘉然宠物用户存档（自动生成，每用户一个 JSON）
+│   │   └── checkin/              # 签到排名数据（自动生成，按日期分文件）
 │   ├── resource/
 │   │   ├── font/                 # Mamelon.otf / sakura.ttf
 │   │   ├── fortune/              # copywriting.json（首次启动前需就位）
 │   │   ├── img/asoul/            # 抽签底图
 │   │   └── out/                  # 抽签结果输出目录（自动创建）
-│   ├── cos_manifest.json         # COS 图床上传索引（自动生成）
 │   ├── wife_img/                 # 抽老婆图片池
 │   └── stats/                    # 命令统计（自动写入）
 └── whateat_pic/
@@ -106,13 +127,14 @@ data/
 | `whateat_max` | `0` | 每用户每日上限，`0` 表示不限 |
 | `live_poll_interval` | `60` | B 站开播轮询间隔（秒） |
 | `live_poll_http_timeout` | `10.0` | B 站开播轮询 HTTP 超时（秒） |
+| `diana_saves_dir` | `diana/saves` | 嘉然宠物用户存档子目录（相对于 data_path） |
 | `cos_id` / `cos_key` | — | 腾讯云 COS 的 SecretId / SecretKey（S3 兼容凭据） |
 | `cos_url` | — | COS endpoint，形如 `https://cos.<region>.myqcloud.com` |
 | `cos_bucket_name` | `diana-image` | COS 桶名 |
 | `cos_public_url` | — | 公网访问域（CDN 或 COS 静态网站），用于拼出图片直链 |
 | `cos_region` | `ap-guangzhou` | COS 桶所在区域（SigV4 签名必需） |
 
-> 嘉然宠物相关配置（`diana_data_dir` / `diana_assets_dir` / `diana_saves_dir`）随该模块开发进展再行说明。
+> `diana_saves_dir` 控制嘉然宠物用户存档位置，默认 `diana/saves`（相对于 `data_path`）；签到排名数据固定写在 `diana/checkin/` 下。嘉然宠物的 data（YAML/模板）与 assets（服装立绘）已打包在 `nonebot_plugin_asoul/diana/` 包内，不再需要额外的外部配置。
 
 ---
 
@@ -137,6 +159,7 @@ nonebot_plugin_asoul/
 ├── random_wife.py           # 抽老婆（Markdown 卡片）
 ├── markdown.py              # QQ Markdown + 内联键盘
 ├── whateat.py               # 今天吃/喝什么（Markdown 卡片）
+├── utils.py                 # JSON 读写、图片下载、抽签合成
 ├── live_subscription/       # B 站开播订阅包
 │   ├── __init__.py          # 注册定时轮询 + 管理命令
 │   ├── admin.py             # 订阅开播 / 取消订阅 / 列表 / 全览
@@ -144,17 +167,36 @@ nonebot_plugin_asoul/
 │   ├── checker.py           # 状态比对与开播检测（带两阶段确认）
 │   ├── manager.py           # 订阅数据持久化（upstreams + 群订阅）
 │   └── notifier.py          # QQ Markdown 通知发送（封面图 + 标题）
-├── diana_pet.py             # 嘉然宠物接入层（开发中）
-├── utils.py                 # JSON 读写、图片下载、抽签合成
 ├── storage/                 # 腾讯云 COS 图床（boto3，S3 兼容）
-│   ├── cos_client.py        # boto3 S3 兼容客户端单例
-│   ├── manifest.py          # 本地缓存索引（static / addressed 两段）
+│   ├── __init__.py          # COSBucket 公开 API：get_or_upload_file / get_or_render
 │   ├── admin.py             # SUPERUSER 管理命令
-│   └── __init__.py          # COSBucket 公开 API：get_or_upload_file / get_or_render
-└── diana/                   # 嘉然宠物核心，独立子包（开发中）
+│   ├── cos_client.py        # boto3 S3 兼容客户端单例
+│   └── manifest.py          # 本地缓存索引（static / addressed 两段）
+└── diana/                   # 嘉然宠物核心引擎
+    ├── __init__.py          # 版本号 + 拉取 commands 注册
+    ├── commands.py          # NoneBot 命令注册与 handler（签到逻辑在此）
+    ├── session.py           # DianaSession 会话管理、互动管线、post-action hooks
+    ├── core.py              # PetState 状态、属性衰减、等级系统
+    ├── items.py             # Item / ItemRegistry，YAML 驱动的交互物品
+    ├── events.py            # 事件系统（随机/关键词/日期/成就）+ EventManager
+    ├── dialogues.py         # DialogueSet 对话池 + 防重复选择
+    ├── costumes.py          # 服装系统（解锁/换装/衣柜卡片）
+    ├── renderer.py          # Playwright + Jinja2 HTML→PNG 渲染
+    ├── utils.py             # 持久化（save_pet/load_pet/list_pets）、路径管理
+    ├── exceptions.py        # 异常定义（DianaError 等）
+    └── data/                # 包内只读数据（YAML/HTML 模板）
 ```
 
 ---
+
+## 致谢
+
+本项目的部分功能基于以下开源项目修改而来：
+
+- **抽签/运势**（`fortune_manager.py`）基于 [MinatoAquaCrews/nonebot_plugin_fortune](https://github.com/MinatoAquaCrews/nonebot_plugin_fortune)
+- **今天吃/喝什么**（`whateat.py`）基于 [Cvandia/nonebot-plugin-whateat-pic](https://github.com/Cvandia/nonebot-plugin-whateat-pic)
+
+感谢原作者的贡献。
 
 ## 上游
 

@@ -32,7 +32,7 @@ from nonebot_plugin_alconna.uniseg import Image, Text, UniMessage
 from .config import config, Config
 from . import start_up as _
 from . import admin_stats as _admin_stats
-from . import diana_pet as _diana_pet
+from .diana import commands as _diana_commands
 from . import whateat as _whateat
 from . import storage as _storage
 from .utils import open_json, download_img

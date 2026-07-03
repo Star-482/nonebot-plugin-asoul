@@ -4,10 +4,25 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
-# ── 衰减速率 ──
-DECAY_HUNGER_PER_HOUR = 2.5        # 每小时饱腹 -2.5
+# 存档 schema。新增字段时：
+# 1. 直接加到 PetState 的 dataclass 字段（带默认值）和 to_dict()
+# 2. from_dict() 会自动丢弃不认识的键，新字段对旧存档使用默认值
+# 模块尚未上线，不存在旧格式存档，因此不需要版本号和迁移链。
+# 上线后如需不兼容的 schema 变更，再引入 SAVE_VERSION 和 _migrate_save。
+
+# ── 成就标志常量 ──
+# 集中管理 achievement_flags 字典的键名，避免裸字符串拼写错误。
+
+class AchievementFlag:
+    """achievement_flags 字典的键名常量."""
+    INTERACTION_FEED_COUNT = "interaction_feed_count"
+    INTERACTION_PLAY_COUNT = "interaction_play_count"
+    MEME_TRIGGERS_COUNT = "meme_triggers_count"
+
+# ── 衰减 / 恢复速率 ──
+DECAY_HUNGER_PER_HOUR = 1.0        # 每小时饱腹 -1.0
 DECAY_MOOD_PER_HOUR = 2.0          # 每小时心情 -2.0
-DECAY_ENERGY_PER_HOUR = 1.0        # 每小时体力 -1.0
+ENERGY_RECOVERY_PER_HOUR = 2.5     # 每小时体力 +2.5（被动恢复）
 DECAY_CLOSENESS_PER_DAY = 3.0      # 每天未互动亲密度 -3
 
 # ── 升级经验 ──
@@ -30,7 +45,11 @@ TITLES = [
 
 @dataclass
 class PetState:
-    """嘉然宠物的完整状态."""
+    """嘉然宠物的完整状态.
+
+    IMPORTANT: 外部修改应走 modify() 以确保 clamp + 升级检查。
+    直接赋值（如 pet.mood = 50）绕过校验，仅用于恢复 / 序列化场景。
+    """
 
     user_id: str
     hunger: int = 80          # 饱腹度 0-100
@@ -50,6 +69,9 @@ class PetState:
     last_interaction_date: str = ""       # YYYY-MM-DD
     unlocked_titles: list = field(default_factory=list)
     achievement_flags: dict = field(default_factory=dict)
+    triggered_dates: list = field(default_factory=list)   # 已触发的特殊日期 ["MM-DD", ...]
+    last_checkin_date: str = ""          # 上次签到日期 YYYY-MM-DD
+    checkin_streak: int = 0              # 连续签到天数
 
     # ── 属性操作 ──
 
@@ -101,10 +123,10 @@ class PetState:
         if elapsed_hours <= 0:
             return {}
 
-        # 衰减计算
+        # 衰减 / 恢复计算
         self.hunger -= int(DECAY_HUNGER_PER_HOUR * elapsed_hours)
         self.mood -= int(DECAY_MOOD_PER_HOUR * elapsed_hours)
-        self.energy -= int(DECAY_ENERGY_PER_HOUR * elapsed_hours)
+        self.energy += int(ENERGY_RECOVERY_PER_HOUR * elapsed_hours)
 
         # 饱腹归零时额外扣心情
         if self.hunger <= 0:
@@ -158,17 +180,16 @@ class PetState:
             "last_interaction_date": self.last_interaction_date,
             "unlocked_titles": self.unlocked_titles,
             "achievement_flags": self.achievement_flags,
+            "triggered_dates": self.triggered_dates,
+            "last_checkin_date": self.last_checkin_date,
+            "checkin_streak": self.checkin_streak,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "PetState":
         data = {k: v for k, v in d.items() if k != "user_id"}
-        # 兼容旧存档：outfit "常服" → "default"
-        if data.get("outfit") == "常服":
-            data["outfit"] = "default"
-        # 兼容旧存档：无 owned_outfits 则默认拥有 default
-        if "owned_outfits" not in data:
-            data["owned_outfits"] = ["default"]
+        # 不认识的键（如旧版存档中的 version）会被 dataclass 忽略，
+        # 因为 PetState 没有对应字段。新增字段对旧存档使用默认值。
         return cls(**data, user_id=d["user_id"])
 
     @classmethod

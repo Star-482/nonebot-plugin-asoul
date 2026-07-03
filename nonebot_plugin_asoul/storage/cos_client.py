@@ -108,4 +108,8 @@ def delete_object_sync(key: str):
 
 def public_url_for(key: str) -> str:
     base = (config.cos_public_url or "").rstrip("/")
+    if not base:
+        from urllib.parse import urlparse
+        p = urlparse(config.cos_url)
+        base = f"{p.scheme}://{config.cos_bucket_name}.{p.hostname}"
     return f"{base}/{key}"

@@ -27,7 +27,10 @@ KEY_PREFIX = {
     "ui": "static/ui",
     # addressed 段：按 recipe 哈希 key
     "addressed_fortune": "addressed/fortune",
-    "addressed_diana": "addressed/diana",
+    "addressed_diana_interaction": "addressed/diana/interaction",
+    "addressed_diana_event":      "addressed/diana/event",
+    "addressed_diana_costume":    "addressed/diana/costume",
+    "addressed_diana_status":     "addressed/diana/status",
     "addressed_test": "addressed/test",
 }
 

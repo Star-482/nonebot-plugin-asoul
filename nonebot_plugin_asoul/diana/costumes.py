@@ -6,6 +6,7 @@ from typing import Optional
 import yaml
 
 from .core import PetState
+from .exceptions import CostumeNotFoundError, CostumeLockedError
 
 
 class CostumeService:
@@ -13,7 +14,7 @@ class CostumeService:
 
     def __init__(self, data_dir: Optional[Path] = None):
         if data_dir is None:
-            data_dir = Path(__file__).parent.parent / "data"
+            data_dir = Path(__file__).parent / "data"
         self.data_dir = Path(data_dir)
         self.costumes = self._load_yaml("costumes.yaml")
 
@@ -40,6 +41,16 @@ class CostumeService:
             })
         return result
 
+    def match_by_name(self, name: str, pet: PetState = None) -> dict | None:
+        """模糊匹配服装名。name 是用户输入，可部分匹配（双向子串）。"""
+        all_costumes = self.list_costumes(pet) if pet else [
+            {"id": cid, "name": cdata["name"]} for cid, cdata in self.costumes.items()
+        ]
+        for costume in all_costumes:
+            if costume["name"] in name or name in costume["name"]:
+                return costume
+        return None
+
     def get_owned(self, pet: PetState) -> list[str]:
         """返回已解锁的服装 ID 列表."""
         return pet.owned_outfits
@@ -47,7 +58,7 @@ class CostumeService:
     def check_unlock(self, pet: PetState, costume_id: str) -> tuple[bool, str]:
         """检查服装是否满足解锁条件，返回 (可解锁, 原因)."""
         if costume_id not in self.costumes:
-            return False, f"没有'{costume_id}'这件服装呢……"
+            raise CostumeNotFoundError(costume_id)
 
         if costume_id in pet.owned_outfits:
             return False, "已经拥有这件服装了~"
@@ -76,10 +87,10 @@ class CostumeService:
     def unlock(self, pet: PetState, costume_id: str) -> dict:
         """尝试解锁服装."""
         if costume_id not in self.costumes:
-            return {"success": False, "text": f"没有'{costume_id}'这件服装呢……"}
+            raise CostumeNotFoundError(costume_id)
 
         if costume_id in pet.owned_outfits:
-            return {"success": False, "text": "已经拥有这件服装了~"}
+            raise CostumeLockedError("已经拥有这件服装了~")
 
         can_unlock, reason = self.check_unlock(pet, costume_id)
         if not can_unlock:
@@ -100,10 +111,10 @@ class CostumeService:
     def change(self, pet: PetState, costume_id: str) -> dict:
         """切换到指定服装."""
         if costume_id not in self.costumes:
-            return {"success": False, "text": f"没有'{costume_id}'这件服装呢……"}
+            raise CostumeNotFoundError(costume_id)
 
         if costume_id not in pet.owned_outfits:
-            return {"success": False, "text": "还没有解锁这件服装哦~"}
+            raise CostumeLockedError()
 
         pet.outfit = costume_id
         name = self.costumes[costume_id]["name"]
