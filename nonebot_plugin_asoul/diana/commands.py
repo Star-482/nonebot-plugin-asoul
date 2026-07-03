@@ -6,9 +6,14 @@
 """
 
 import asyncio
+import json
 import logging
+import os
+import time as _time
 from collections import OrderedDict
+from datetime import date, timedelta
 from pathlib import Path
+from threading import Lock as ThreadLock
 
 from nonebot import get_driver
 from nonebot.adapters import Event
@@ -230,10 +235,162 @@ diana_help = on_command("然然帮助", aliases={"宠物帮助", "然然指令"}
 diana_checkin = on_command("签到", aliases={"嘉心糖签到", "每日签到"}, priority=config.command_priority)
 
 
+# ── 签到奖励分层 ──
+# 按全用户排名决定奖励币数
+
+def _compute_checkin_reward(global_rank: int) -> int:
+    """按全用户排名返回奖励嘉心糖币数."""
+    if global_rank == 1:
+        return 50
+    elif global_rank <= 3:
+        return 30
+    elif global_rank <= 10:
+        return 20
+    else:
+        return 10
+
+
+# ── 签到排名文件 ──
+
+_CHECKIN_WRITE_LOCK = ThreadLock()
+
+
+def _get_checkin_dir() -> Path:
+    """返回签到排名文件目录."""
+    d = Path(config.data_path) / "diana" / "checkin"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _today_checkin_path() -> Path:
+    return _get_checkin_dir() / f"{date.today().isoformat()}.json"
+
+
+def _load_today_checkin() -> dict:
+    """读取今日签到文件，不存在返回空结构."""
+    fp = _today_checkin_path()
+    if not fp.exists():
+        return {"date": date.today().isoformat(), "checkins": []}
+    with open(fp, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _save_today_checkin(data: dict) -> None:
+    """写入今日签到文件（原子写入）."""
+    fp = _today_checkin_path()
+    tmp = fp.with_suffix(".json.tmp")
+    with _CHECKIN_WRITE_LOCK:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, fp)
+
+
+def _get_group_id(event: Event) -> str:
+    """从 Event 提取群 ID，私聊返回 'dm'."""
+    if gid := getattr(event, "group_openid", ""):
+        return str(gid)
+    return "dm"
+
+
+def _compute_group_rank(checkins: list, group_id: str) -> int:
+    """计算群内排名：该 group_id 在 checkins 中出现次数 + 1."""
+    return sum(1 for c in checkins if c.get("group_id") == group_id) + 1
+
+
+def _build_checkin_success_msg(
+    group_rank: int,
+    global_rank: int,
+    coins: int,
+    streak: int,
+    balance: int,
+    is_dm: bool,
+) -> str:
+    """构建签到成功消息."""
+    lines = ["✅ **签到成功！**", ""]
+    if not is_dm:
+        lines.append(f"🏅 本群第 **{group_rank}** 个签到")
+    lines.append(f"🌍 全用户第 **{global_rank}** 个签到")
+    lines.append(f"💰 获得 **{coins}** 嘉心糖币")
+    lines.append(f"🔥 连续签到 **{streak}** 天")
+    lines.append("")
+    lines.append(f"当前余额：🪙 {balance} 嘉心糖币")
+    return "\n".join(lines)
+
+
+def _build_checkin_dup_msg(streak: int, balance: int) -> str:
+    """构建重复签到消息."""
+    return f"你今天已经签到过了哦~\n🔥 连续签到 {streak} 天 | 🪙 余额 {balance} 嘉心糖币"
+
+
+# ── 签到 handler ──
+
 @diana_checkin.handle()
-async def _(matcher: Matcher):
-    result = {"text": "✅ 签到成功！获得了 10 嘉心糖币~"}
-    await send_result(result, matcher, "text")
+async def _(event: Event, matcher: Matcher):
+    user_id = event.get_user_id()
+    group_id = _get_group_id(event)
+    today = date.today().isoformat()
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+
+    session = await get_session(user_id)
+    pet = session.pet
+
+    # 检查是否已签到
+    if pet.last_checkin_date == today:
+        result = {"text": _build_checkin_dup_msg(pet.checkin_streak, pet.coins)}
+        await send_result(result, matcher, "text")
+        return
+
+    # 计算连续签到天数
+    if pet.last_checkin_date == "":
+        pet.checkin_streak = 1
+    elif pet.last_checkin_date == yesterday:
+        pet.checkin_streak += 1
+    else:
+        pet.checkin_streak = 1
+
+    # 读取今日签到文件，计算排名
+    checkin_data = _load_today_checkin()
+    checkins = checkin_data["checkins"]
+
+    # 去重检查（防御：PetState 说没签到但文件里已有记录）
+    existing_ids = {c["user_id"] for c in checkins}
+    if user_id in existing_ids:
+        pet.last_checkin_date = today
+        session._save()
+        result = {"text": _build_checkin_dup_msg(pet.checkin_streak, pet.coins)}
+        await send_result(result, matcher, "text")
+        return
+
+    global_rank = len(checkins) + 1
+    group_rank = _compute_group_rank(checkins, group_id)
+
+    # 计算奖励
+    coin_reward = _compute_checkin_reward(global_rank)
+
+    # 更新 PetState
+    pet.coins += coin_reward
+    pet.last_checkin_date = today
+
+    # 追加签到记录
+    checkins.append({
+        "user_id": user_id,
+        "group_id": group_id,
+        "timestamp": _time.time(),
+        "coins": coin_reward,
+    })
+    _save_today_checkin(checkin_data)
+    session._save()
+
+    is_dm = group_id == "dm"
+    msg = _build_checkin_success_msg(
+        group_rank=group_rank,
+        global_rank=global_rank,
+        coins=coin_reward,
+        streak=pet.checkin_streak,
+        balance=pet.coins,
+        is_dm=is_dm,
+    )
+    await send_result({"text": msg}, matcher, "text")
 
 
 # ── 互动 handler（5 个统一路径：interact）──

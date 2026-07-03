@@ -70,6 +70,8 @@ class PetState:
     unlocked_titles: list = field(default_factory=list)
     achievement_flags: dict = field(default_factory=dict)
     triggered_dates: list = field(default_factory=list)   # 已触发的特殊日期 ["MM-DD", ...]
+    last_checkin_date: str = ""          # 上次签到日期 YYYY-MM-DD
+    checkin_streak: int = 0              # 连续签到天数
 
     # ── 属性操作 ──
 
@@ -179,6 +181,8 @@ class PetState:
             "unlocked_titles": self.unlocked_titles,
             "achievement_flags": self.achievement_flags,
             "triggered_dates": self.triggered_dates,
+            "last_checkin_date": self.last_checkin_date,
+            "checkin_streak": self.checkin_streak,
         }
 
     @classmethod
