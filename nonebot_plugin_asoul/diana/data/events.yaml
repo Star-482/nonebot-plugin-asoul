@@ -346,8 +346,4 @@ achievements:
     name: 百科全书
     text: "📖 触发了15个不同的梗事件！解锁称号「百科全书」！你对然然的了解无人能及！"
     effects: {hunger: 10, mood: 10}
-  birthday_witness:
-    condition: {on_birthday: true}
-    name: 生日见证者
-    text: "🎂 你在然然生日当天互动了！获得限定勋章「生日见证者」！"
-    effects: {}
+  

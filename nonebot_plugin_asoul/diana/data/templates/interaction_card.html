@@ -6,7 +6,7 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    width: 600px; height: 320px;
+    width: 600px; height: 340px;
     font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
     background: linear-gradient(135deg, #FFF4F6 0%, #FFD6E0 100%);
     display: flex; align-items: center; justify-content: center;
@@ -17,7 +17,10 @@
     padding: 22px 26px; text-align: center;
   }
   .action-icon { font-size: 48px; margin-bottom: 8px; }
-  .action-name { font-size: 18px; font-weight: bold; color: #D4708A; margin-bottom: 10px; }
+  .action-name { font-size: 18px; font-weight: bold; color: #D4708A; margin-bottom: 6px; }
+  .action-desc {
+    font-size: 13px; color: #999; margin-bottom: 8px;
+  }
   .dialogue {
     font-size: 15px; color: #555; line-height: 1.6;
     padding: 10px 16px; background: #FFF4F6; border-radius: 12px; margin-bottom: 14px;
@@ -36,6 +39,7 @@
 <div class="card">
   <div class="action-icon">{{ emoji }}</div>
   <div class="action-name">{{ action_name }}</div>
+  <div class="action-desc">{{ description }}</div>
   <div class="dialogue">{{ dialogue }}</div>
   <div class="changes">
     {% for c in changes -%}

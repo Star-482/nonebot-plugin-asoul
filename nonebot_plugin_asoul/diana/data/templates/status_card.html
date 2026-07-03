@@ -6,7 +6,7 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    width: 680px; height: 400px;
+    width: 680px; height: 440px;
     font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
     background: linear-gradient(135deg, #FFF4F6 0%, #FFD6E0 100%);
     display: flex; align-items: center; justify-content: center;
@@ -40,6 +40,14 @@
   }
   .stat-value { width: 32px; text-align: right; font-weight: bold; color: #D4708A; font-size: 13px; }
   .coin-row { margin-top: 8px; }
+  .busy-bar {
+    margin-top: 6px; padding: 6px 12px;
+    background: linear-gradient(135deg, #FFF3E0, #FFECB3);
+    border-radius: 10px; font-size: 12px; color: #E6A23C;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .busy-icon { font-size: 16px; }
+  .busy-text { flex: 1; }
   .footer {
     margin-top: 10px; padding-top: 8px; border-top: 1px solid #FFE8EE;
     font-size: 12px; color: #D4708A; text-align: center; font-style: italic;
@@ -89,6 +97,13 @@
     <div class="info-row coin-row">
       <span class="info-item">&#x1F4B0; 嘉心糖币 {{ coins }}</span>
     </div>
+
+    {% if busy_remaining > 0 %}
+    <div class="busy-bar">
+      <span class="busy-icon">&#x23F3;</span>
+      <span class="busy-text">正在「{{ busy_action }}」，剩余 {{ busy_text }}</span>
+    </div>
+    {% endif %}
 
     <div class="footer">{{ quote }}</div>
   </div>

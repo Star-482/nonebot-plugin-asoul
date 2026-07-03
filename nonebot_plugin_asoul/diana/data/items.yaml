@@ -1,0 +1,642 @@
+薯片:
+  category: food
+  emoji: 🍟
+  description: 嘉然最爱的薯片，嘎嘣脆
+  requires:
+    coins: 8
+  duration: 600
+  effects:
+    hunger: 15
+    mood: 5
+    closeness: 1
+    coins: -8
+可乐:
+  category: food
+  emoji: 🥤
+  description: 垃圾食品爱好者的快乐水
+  requires:
+    coins: 5
+  duration: 600
+  effects:
+    hunger: 5
+    mood: 10
+    closeness: 1
+    coins: -5
+鸡胸肉:
+  category: food
+  emoji: 🍗
+  description: 「半吊子的鸡胸肉」——感动了千万嘉心糖
+  requires:
+    coins: 12
+  duration: 900
+  effects:
+    hunger: 25
+    mood: 15
+    energy: 5
+    closeness: 3
+    coins: -12
+小草莓:
+  category: food
+  emoji: 🍓
+  description: 「我是你们最甜甜甜的小草莓🍓」
+  requires:
+    coins: 15
+  duration: 900
+  effects:
+    hunger: 10
+    mood: 18
+    closeness: 3
+    coins: -15
+螺蛳粉:
+  category: food
+  emoji: 🍜
+  description: 嘉然真的爱吃螺蛳粉！
+  requires:
+    coins: 10
+  duration: 1200
+  effects:
+    hunger: 30
+    mood: 8
+    closeness: 2
+    coins: -10
+抹茶零食:
+  category: food
+  emoji: 🍵
+  description: 抹茶控的小零食
+  requires:
+    coins: 12
+  duration: 600
+  effects:
+    hunger: 12
+    mood: 12
+    closeness: 2
+    coins: -12
+辣子鸡:
+  category: food
+  emoji: 🌶️
+  description: 「超级不擅长吃辣辣的东西」——被辣哭了
+  requires:
+    coins: 10
+  duration: 900
+  effects:
+    hunger: 20
+    mood: -15
+    closeness: 1
+    coins: -10
+煎饺:
+  category: food
+  emoji: 🥟
+  description: 「只有两个煎饺的早餐店耶！赚到了(•̀⌄•́)」
+  requires:
+    coins: 8
+  duration: 600
+  effects:
+    hunger: 18
+    mood: 10
+    closeness: 2
+    coins: -8
+脆油条:
+  category: food
+  emoji: 🥖
+  description: 小巷美食系列——脆脆的油条
+  requires:
+    coins: 5
+  duration: 600
+  effects:
+    hunger: 15
+    mood: 5
+    closeness: 1
+    coins: -5
+烤串:
+  category: food
+  emoji: 🍢
+  description: 吃遍大江南北的梦想
+  requires:
+    coins: 15
+  duration: 900
+  effects:
+    hunger: 22
+    mood: 10
+    closeness: 2
+    coins: -15
+可颂:
+  category: food
+  emoji: 🥐
+  description: 小巷子里意外发现的好吃可颂
+  requires:
+    coins: 10
+  duration: 600
+  effects:
+    hunger: 18
+    mood: 8
+    closeness: 2
+    coins: -10
+蟹炒年糕:
+  category: food
+  emoji: 🦀
+  description: 美食小巷名菜！
+  requires:
+    coins: 18
+  duration: 1200
+  effects:
+    hunger: 28
+    mood: 12
+    energy: 5
+    closeness: 3
+    coins: -18
+汤年糕:
+  category: food
+  emoji: 🍲
+  description: 冬日暖食，暖暖的很贴心
+  requires:
+    coins: 10
+  duration: 900
+  effects:
+    hunger: 20
+    mood: 10
+    energy: 5
+    closeness: 2
+    coins: -10
+芋泥欧包:
+  category: food
+  emoji: 🍞
+  description: 甜食带来的幸福感
+  requires:
+    coins: 12
+  duration: 600
+  effects:
+    hunger: 16
+    mood: 15
+    closeness: 2
+    coins: -12
+生日蛋糕:
+  category: food
+  emoji: 🎂
+  description: 生日月限定！祝然然生日快乐
+  requires:
+    coins: 30
+  duration: 1200
+  effects:
+    hunger: 10
+    mood: 30
+    closeness: 5
+    coins: -30
+冰淇淋:
+  category: food
+  emoji: 🍦
+  description: 夏天来一口冰淇淋~
+  requires:
+    coins: 6
+  duration: 600
+  effects:
+    hunger: 8
+    mood: 15
+    closeness: 2
+    coins: -6
+汉堡炸鸡:
+  category: food
+  emoji: 🍔
+  description: 垃圾食品大餐（嘴上说不健康但还是吃了）
+  requires:
+    coins: 20
+  duration: 900
+  effects:
+    hunger: 25
+    mood: 5
+    closeness: 0
+    coins: -20
+嘉心糖投喂自己:
+  category: food
+  emoji: 🍬
+  description: 「嘉心糖嚼起来是什么味道？？？！！！」
+  requires: {}
+  duration: 600
+  effects:
+    hunger: -10
+    mood: 25
+    closeness: 4
+抹茶蛋糕:
+  category: food
+  emoji: 🍰
+  description: 甜甜的抹茶蛋糕，然然超级喜欢
+  requires:
+    coins: 15
+  duration: 600
+  effects:
+    hunger: 14
+    mood: 18
+    closeness: 3
+    coins: -15
+奶茶:
+  category: food
+  emoji: 🧋
+  description: 一杯暖暖的奶茶
+  requires:
+    coins: 12
+  duration: 600
+  effects:
+    hunger: 8
+    mood: 12
+    energy: 5
+    closeness: 2
+    coins: -12
+提拉米苏:
+  category: food
+  emoji: 🍫
+  description: 精致甜点，约会必备
+  requires:
+    coins: 18
+  duration: 900
+  effects:
+    hunger: 15
+    mood: 20
+    closeness: 4
+    coins: -18
+连连看:
+  category: play
+  emoji: 🎮
+  description: 「玩到凌晨5点的连连看」
+  requires:
+    energy: 15
+  duration: 1800
+  effects:
+    hunger: -5
+    mood: 15
+    energy: -15
+    closeness: 2
+宅舞一支:
+  category: play
+  emoji: 💃
+  description: 日常练舞，元气满满
+  requires:
+    energy: 20
+  duration: 1800
+  effects:
+    hunger: -8
+    mood: 12
+    energy: -20
+    closeness: 3
+宅舞20连:
+  category: play
+  emoji: 🔥
+  description: 名场面复刻！出道首播的奇迹
+  requires:
+    energy: 40
+  duration: 3600
+  effects:
+    hunger: -15
+    mood: 25
+    energy: -40
+    closeness: 4
+    coins: 30
+你画我猜:
+  category: play
+  emoji: 🎨
+  description: 「猜出来了就Mua你一下~」
+  requires:
+    energy: 8
+  duration: 1200
+  effects:
+    hunger: -3
+    mood: 20
+    energy: -8
+    closeness: 3
+糖豆人:
+  category: play
+  emoji: 🎯
+  description: 联动游戏，嘉然超爱
+  requires:
+    energy: 10
+  duration: 1800
+  effects:
+    hunger: -5
+    mood: 15
+    energy: -10
+    closeness: 2
+健身环:
+  category: play
+  emoji: 🏋️
+  description: 健身环大冒险——低气压警告⚠
+  requires:
+    energy: 30
+  duration: 3600
+  effects:
+    hunger: -10
+    mood: -10
+    energy: -30
+    closeness: 2
+JOJO立:
+  category: play
+  emoji: ⭐
+  description: 整活时刻，JOJO！
+  requires:
+    energy: 10
+  duration: 600
+  effects:
+    hunger: 0
+    mood: 18
+    energy: -10
+    closeness: 2
+Switch游戏:
+  category: play
+  emoji: 🎲
+  description: 「建议严查任天堂是否为嘉然毒唯」
+  requires:
+    energy: 10
+  duration: 1800
+  effects:
+    hunger: -5
+    mood: 18
+    energy: -10
+    closeness: 2
+唱猫中毒:
+  category: play
+  emoji: 🐱
+  description: 千万播放的翻唱名曲
+  requires:
+    energy: 8
+  duration: 1800
+  effects:
+    hunger: -3
+    mood: 20
+    energy: -8
+    closeness: 3
+    coins: 5
+唱YOU&IDOL:
+  category: play
+  emoji: 🎤
+  description: 精修翻唱，嘉心糖心头好
+  requires:
+    energy: 5
+  duration: 1200
+  effects:
+    hunger: -3
+    mood: 15
+    energy: -5
+    closeness: 2
+打嗝:
+  category: play
+  emoji: 😳
+  description: 「打嗝小嘉然」——偶像包袱爆炸
+  requires: {}
+  duration: 300
+  effects:
+    mood: -15
+    closeness: 2
+拍摄抖音:
+  category: play
+  emoji: 📱
+  description: 短视频营业
+  requires:
+    energy: 8
+  duration: 1200
+  effects:
+    hunger: -3
+    mood: 10
+    energy: -8
+    closeness: 2
+    coins: 10
+日常直播:
+  category: work
+  emoji: 📺
+  description: B站日常直播
+  requires:
+    energy: 25
+  duration: 14400
+  effects:
+    hunger: -10
+    energy: -25
+    closeness: 2
+    coins: 40
+生日会直播:
+  category: work
+  emoji: 🎉
+  description: 年度盛典生日会！
+  requires:
+    energy: 30
+  duration: 28800
+  effects:
+    hunger: -15
+    mood: 20
+    energy: -30
+    closeness: 3
+    coins: 100
+练舞排练:
+  category: work
+  emoji: 🩰
+  description: 练习室里挥洒汗水
+  requires:
+    energy: 20
+  duration: 7200
+  effects:
+    hunger: -8
+    mood: -5
+    energy: -20
+    closeness: 1
+    coins: 10
+团播:
+  category: work
+  emoji: 🌟
+  description: A-SOUL全员直播！
+  requires:
+    energy: 20
+  duration: 10800
+  effects:
+    hunger: -10
+    mood: 10
+    energy: -20
+    closeness: 2
+    coins: 50
+小剧场:
+  category: work
+  emoji: 🎭
+  description: 搞活放松的小剧场时间
+  requires:
+    energy: 15
+  duration: 7200
+  effects:
+    hunger: -5
+    mood: 15
+    energy: -15
+    closeness: 2
+    coins: 30
+摸摸头:
+  category: social
+  emoji: ✋
+  description: 摸然然的呆毛~
+  requires: {}
+  duration: 300
+  effects:
+    mood: 10
+    closeness: 4
+说好耶:
+  category: social
+  emoji: 🎊
+  description: 然然的口头禅——「好耶！」
+  requires: {}
+  duration: 300
+  effects:
+    mood: 8
+    closeness: 2
+喊一米八:
+  category: social
+  emoji: 📏
+  description: 身高梗——「一米八」还是「一米吧」？
+  requires: {}
+  duration: 300
+  effects:
+    closeness: 1
+  random_effects:
+    mood:
+    - -15
+    - -10
+    - -5
+    - 5
+    - 10
+    - 15
+叫嘉门:
+  category: social
+  emoji: 🙏
+  description: 圣嘉然模式开启！嘉门🙏
+  requires: {}
+  duration: 300
+  effects:
+    mood: 15
+    closeness: 3
+    coins: 5
+叫粉色矮子:
+  category: social
+  emoji: 💢
+  description: 踩雷了！！嘉然生气了😡
+  requires: {}
+  duration: 300
+  effects:
+    mood: -20
+    closeness: -2
+说嘉心糖屁用没有:
+  category: social
+  emoji: 😢
+  description: 然然：不是的！我的嘉心糖都是很厉害的人！
+  requires: {}
+  duration: 300
+  effects:
+    mood: -10
+    closeness: 1
+写信小作文:
+  category: social
+  emoji: ✉️
+  description: 小作文大赛——真情流露
+  requires: {}
+  duration: 600
+  effects:
+    mood: 20
+    closeness: 4
+    coins: 10
+送抱枕:
+  category: social
+  emoji: 🎁
+  description: 送然然一个可爱的抱枕
+  requires:
+    coins: 25
+  duration: 600
+  effects:
+    mood: 15
+    closeness: 4
+    coins: -25
+Mua:
+  category: social
+  emoji: 💋
+  description: 你画我猜经典——「Mua你一下~」
+  requires: {}
+  duration: 600
+  effects:
+    mood: 25
+    closeness: 5
+说土味情话:
+  category: social
+  emoji: 💌
+  description: 嘉然喜欢写情书的~
+  requires: {}
+  duration: 300
+  effects:
+    mood: 10
+    closeness: 2
+休息:
+  category: daily
+  emoji: 😴
+  description: 「安详点好呀~」——休息充电
+  requires: {}
+  duration: 1800
+  effects:
+    mood: -5
+    energy: 30
+    closeness: 0
+逛街:
+  category: daily
+  emoji: 🛍️
+  description: 小巷子里觅食逛街
+  requires:
+    coins: 20
+  duration: 3600
+  effects:
+    hunger: -5
+    mood: 15
+    energy: -15
+    closeness: 3
+    coins: -20
+上学:
+  category: daily
+  emoji: 📚
+  description: 枝江大学上课中
+  requires: {}
+  duration: 14400
+  effects:
+    hunger: -5
+    mood: -5
+    energy: -10
+    coins: 15
+    closeness: 0
+自画像:
+  category: daily
+  emoji: 🖼️
+  description: 嘉然给嘉心糖画画像
+  requires: {}
+  duration: 900
+  effects:
+    mood: 10
+    energy: -5
+    closeness: 3
+敷面膜:
+  category: daily
+  emoji: 💆
+  description: 偶像的日常保养
+  requires:
+    coins: 10
+  duration: 900
+  effects:
+    mood: 10
+    energy: 5
+    closeness: 1
+    coins: -10
+刷B站:
+  category: daily
+  emoji: 📱
+  description: 看二创视频放松
+  requires: {}
+  duration: 1800
+  effects:
+    mood: 10
+    energy: -5
+    closeness: 0
+吃夜宵:
+  category: daily
+  emoji: 🌙
+  description: 深夜放毒！然然也爱吃夜宵
+  requires:
+    coins: 10
+  duration: 600
+  effects:
+    hunger: 15
+    mood: 10
+    closeness: 1
+    coins: -10

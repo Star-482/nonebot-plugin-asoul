@@ -15,6 +15,7 @@ zodiac: 双鱼座
 fan_name: 嘉心糖
 occupation: 枝江大学在校生
 group: A-SOUL
+exp_closeness_multiplier: 16  # 经验 = 亲密度增量 × 此值（日均 ~12 亲密度 × 16 ≈ 2 级）
 catchphrases:
   - "我是你们最甜甜甜的小草莓🍓"
   - "大家一定要好好吃饭啊！"
