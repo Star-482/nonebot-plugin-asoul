@@ -67,6 +67,7 @@ class Notifier:
                 logger.warning(
                     f"发送开播通知失败 gid={gid} uid={info.uid}: {e}"
                 )
+            await asyncio.sleep(0.03)  # QPS 限制 50，每条间隔 30ms
 
     async def on_live_stop(self, info: LiveInfo, _old_info: LiveInfo | None = None) -> None:
         if _old_info is None:
@@ -131,7 +132,7 @@ class Notifier:
             f"## {uname} 下播了\n\n"
             f"**{old_info.title}** 直播已结束\n\n"
             f"{md_img}\n\n"
-            f"[查看完整数据](https://live.pixel-asoul.club/session/{session_id})"
+            f"[查看完整数据](https://live.pixel-asoul.club)"
         )
 
         keyboard = MessageKeyboard(
@@ -149,3 +150,4 @@ class Notifier:
                 logger.warning(
                     f"[live-stop] 发送下播通知失败 gid={gid} uid={uid}: {e}"
                 )
+            await asyncio.sleep(0.03)  # QPS 限制 50，每条间隔 30ms
