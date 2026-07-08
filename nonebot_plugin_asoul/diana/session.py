@@ -109,6 +109,10 @@ async def shutdown() -> None:
         await _renderer.close()
         _renderer = None
     _render_semaphore = None
+
+    from ..browser import close_browser
+    await close_browser()
+
     _initialized = False
 
 
