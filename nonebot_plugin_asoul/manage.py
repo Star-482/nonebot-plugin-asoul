@@ -5,7 +5,7 @@
 @Description: 插件管理——处理群移除 bot、消息推送开通等事件，自动清理/标记相关数据.
 """
 from nonebot import on_notice
-from nonebot.adapters.qq.event import GroupDelRobotEvent, GroupMsgReceiveEvent
+from nonebot.adapters.qq.event import GroupDelRobotEvent, GroupMsgReceiveEvent, GroupMsgRejectEvent
 from nonebot.log import logger
 from nonebot.rule import Rule
 
@@ -20,8 +20,13 @@ def _is_group_msg_receive(event) -> bool:
     return isinstance(event, GroupMsgReceiveEvent)
 
 
+def _is_group_msg_reject(event) -> bool:
+    return isinstance(event, GroupMsgRejectEvent)
+
+
 _group_del_robot = on_notice(rule=Rule(_is_group_del_robot), priority=100)
 _group_msg_receive = on_notice(rule=Rule(_is_group_msg_receive), priority=100)
+_group_msg_reject = on_notice(rule=Rule(_is_group_msg_reject), priority=100)
 
 
 @_group_del_robot.handle()
@@ -47,3 +52,16 @@ async def _(event: GroupMsgReceiveEvent):
     if manager.is_push_ok(gid) is not True:
         manager.mark_push_ok(gid)
         logger.info(f"检测到群推送开通，标记推送可用 gid={gid}")
+
+
+@_group_msg_reject.handle()
+async def _(event: GroupMsgRejectEvent):
+    """收到消息推送关闭事件，标记该群推送不可用."""
+    gid = event.group_openid
+    manager.mark_push_fail(gid)
+    logger.info(f"检测到群推送关闭，标记推送不可用 gid={gid}")
+
+
+def is_push_ok(gid: str) -> bool | None:
+    """查询群推送状态，供 admin 等模块使用."""
+    return manager.is_push_ok(gid)
