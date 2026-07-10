@@ -60,8 +60,3 @@ async def _(event: GroupMsgRejectEvent):
     gid = event.group_openid
     manager.mark_push_fail(gid)
     logger.info(f"检测到群推送关闭，标记推送不可用 gid={gid}")
-
-
-def is_push_ok(gid: str) -> bool | None:
-    """查询群推送状态，供 admin 等模块使用."""
-    return manager.is_push_ok(gid)
