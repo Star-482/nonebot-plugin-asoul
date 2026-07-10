@@ -120,6 +120,15 @@ class SubscriptionManager:
     async def is_subscribed(self, gid: str, uid: int) -> bool:
         return str(uid) in self._subscriptions.get(gid, [])
 
+    async def remove_group(self, gid: str) -> bool:
+        """移除该群的所有订阅记录。返回是否确实有数据被清除。"""
+        async with self._lock:
+            if gid not in self._subscriptions:
+                return False
+            del self._subscriptions[gid]
+            save_json(_SUBSCRIPTIONS_FILE, self._subscriptions)
+            return True
+
     async def list_for_group(self, gid: str) -> list[dict]:
         uid_strs = self._subscriptions.get(gid, [])
         uid_to_name = {str(u["uid"]): u["name"] for u in self._upstreams}

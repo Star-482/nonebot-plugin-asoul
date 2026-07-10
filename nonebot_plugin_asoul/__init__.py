@@ -34,6 +34,7 @@ from . import whateat as _whateat
 from . import storage as _storage
 from .utils import open_json, download_img
 from . import live_subscription as _live_subscription
+from . import manage as _manage
 from .fortune_manager import fortune_manager
 from .activity import save_img_activity, save_json_activity, get_relative_content
 from .markdown import get_about_xiaoran_markdown, get_test_markdown
