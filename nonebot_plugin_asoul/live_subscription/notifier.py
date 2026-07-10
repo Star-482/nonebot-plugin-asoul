@@ -42,6 +42,29 @@ def _mk_link_button(url: str, label: str = "去直播间") -> Button:
 class Notifier:
     """QQ 群 Markdown 通知。"""
 
+    async def _try_send(self, gid: str, message, uid: int, label: str) -> None:
+        """发送一条通知并更新推送验证状态."""
+        push_state = manager.is_push_ok(gid)
+        if push_state is False:
+            return  # 已知不可用，跳过
+
+        bot = get_bot()
+        try:
+            await bot.send_to_group(group_openid=gid, message=message)
+            if push_state is None:
+                manager.mark_push_ok(gid)
+                logger.info(f"[{label}] 首次发送成功，标记推送可用 gid={gid}")
+        except Exception as e:
+            logger.warning(
+                f"[{label}] 发送通知失败 gid={gid} uid={uid}: {e}"
+            )
+            if push_state is True:
+                manager.mark_push_fail(gid)
+                logger.info(f"[{label}] 推送失效，标记不可用 gid={gid}")
+            elif push_state is None:
+                manager.mark_push_fail(gid)
+                logger.info(f"[{label}] 首次发送失败，标记不可用 gid={gid}")
+
     async def on_live_start(self, info: LiveInfo) -> None:
         groups = manager.get_subscribed_groups(info.uid)
         if not groups:
@@ -59,15 +82,9 @@ class Notifier:
         )
         message = MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard)
 
-        bot = get_bot()
         for gid in groups:
-            try:
-                await bot.send_to_group(group_openid=gid, message=message)
-            except Exception as e:
-                logger.warning(
-                    f"发送开播通知失败 gid={gid} uid={info.uid}: {e}"
-                )
-            await asyncio.sleep(0.03)  # QPS 限制 50，每条间隔 30ms
+            await self._try_send(gid, message, info.uid, "live-start")
+            await asyncio.sleep(0.03)
 
     async def on_live_stop(self, info: LiveInfo, _old_info: LiveInfo | None = None) -> None:
         if _old_info is None:
@@ -142,12 +159,6 @@ class Notifier:
         )
         message = MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard)
 
-        bot = get_bot()
         for gid in groups:
-            try:
-                await bot.send_to_group(group_openid=gid, message=message)
-            except Exception as e:
-                logger.warning(
-                    f"[live-stop] 发送下播通知失败 gid={gid} uid={uid}: {e}"
-                )
-            await asyncio.sleep(0.03)  # QPS 限制 50，每条间隔 30ms
+            await self._try_send(gid, message, uid, "live-stop")
+            await asyncio.sleep(0.03)

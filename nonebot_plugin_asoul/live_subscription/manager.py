@@ -16,9 +16,11 @@ from ..config import config
 # open_json / save_json 内部会拼接 config.data_path，这里用相对路径
 _UPSTREAMS_FILE = "live_subscription/upstreams.json"
 _SUBSCRIPTIONS_FILE = "live_subscription/subscriptions.json"
+_PUSH_FILE = "live_subscription/push_verified.json"
 # 文件存在性检查用绝对路径
 _UPSTREAMS_ABS = os.path.join(config.data_path, _UPSTREAMS_FILE)
 _SUBSCRIPTIONS_ABS = os.path.join(config.data_path, _SUBSCRIPTIONS_FILE)
+_PUSH_ABS = os.path.join(config.data_path, _PUSH_FILE)
 
 _DEFAULT_UPSTREAMS = {
     "upstreams": [
@@ -45,8 +47,11 @@ class SubscriptionManager:
         self._lock = asyncio.Lock()
         self._upstreams: list[dict] = []
         self._subscriptions: dict[str, list[str]] = {}
+        self._push_ok: set[str] = set()   # 已验证推送的群
+        self._push_fail: set[str] = set()  # 推送失败的群
         self._load_upstreams()
         self._load_subscriptions()
+        self._load_push()
 
     # ── 预定义列表 ──
 
@@ -151,6 +156,49 @@ class SubscriptionManager:
     def get_subscribed_groups(self, uid: int) -> list[str]:
         uid_str = str(uid)
         return [gid for gid, subs in self._subscriptions.items() if uid_str in subs]
+
+    # ── 推送验证状态 ──
+
+    def _load_push(self) -> None:
+        """加载推送验证状态文件."""
+        if not os.path.exists(_PUSH_ABS):
+            save_json(_PUSH_FILE, {"ok": [], "fail": []})
+        data = open_json(_PUSH_FILE)
+        self._push_ok = set(data.get("ok", []))
+        self._push_fail = set(data.get("fail", []))
+
+    def _save_push(self) -> None:
+        """持久化推送验证状态."""
+        save_json(_PUSH_FILE, {
+            "ok": sorted(self._push_ok),
+            "fail": sorted(self._push_fail),
+        })
+
+    def mark_push_ok(self, gid: str) -> None:
+        """标记该群推送可用."""
+        self._push_fail.discard(gid)
+        self._push_ok.add(gid)
+        self._save_push()
+
+    def mark_push_fail(self, gid: str) -> None:
+        """标记该群推送不可用."""
+        self._push_ok.discard(gid)
+        self._push_fail.add(gid)
+        self._save_push()
+
+    def unmark_push(self, gid: str) -> None:
+        """移除该群的推送状态记录（退群时清理）."""
+        self._push_ok.discard(gid)
+        self._push_fail.discard(gid)
+        self._save_push()
+
+    def is_push_ok(self, gid: str) -> bool | None:
+        """返回推送状态：True=可用, False=不可用, None=未知."""
+        if gid in self._push_ok:
+            return True
+        if gid in self._push_fail:
+            return False
+        return None
 
 
 manager = SubscriptionManager()
