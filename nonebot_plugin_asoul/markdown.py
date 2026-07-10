@@ -90,21 +90,22 @@ def get_about_xiaoran_markdown():
         "> 如果你想更了解嘉然，就去 B 站给她点个关注吧。\n"
         "> 关注嘉然，顿顿解馋！\n\n"
         "## 小然 Bot\n"
-        "面向 A-SOUL 和嘉然粉丝的 QQ 群助手，提供直播日程、每日运势、小作文等快捷功能。\n\n"
-        "想参与小然 Bot 的建设？[点击投稿](https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ) 分享你的创意~\n\n"
+        "面向 A-SOUL 和嘉然粉丝的 QQ 群助手，提供开播提醒、每日运势、小作文等快捷功能。\n\n"
+        "参与小然 Bot 的建设[点击投稿](https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ) 分享你的想法~\n\n"
     )
     keyboard = MessageKeyboard(
         content=InlineKeyboard(
             rows=[
                 InlineKeyboardRow(
                     buttons=[
-                        _command_button("week_activity", "本周日程", "/本周日程"),
+                        _command_button("week_activity", "订阅开播", "/订阅开播"),
                         _command_button("daily_fortune", "今日运势", "/今日运势"),
                         _command_button("quotation", "发病一下", "/发病小作文"),
                     ]
                 ),
                 InlineKeyboardRow(
                     buttons=[
+                        _link_button("introduce", "使用说明", "https://docs.qq.com/doc/DRkFEbEhoa1Jzc05r"),
                         _link_button("submit", "点我投稿", "https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ"),
                         _link_button("group", "交流群", "https://qm.qq.com/q/bTIMDcbTkA"),
                     ]
