@@ -8,10 +8,6 @@ import os
 import random
 from pathlib import Path
 
-from nonebot import require
-require("nonebot_plugin_alconna")
-from nonebot_plugin_alconna.uniseg import Image, Text, UniMessage
-
 from nonebot.adapters.qq import MessageSegment
 from nonebot.adapters.qq.models import (
     Action,
@@ -31,17 +27,6 @@ def _wife_path() -> Path:
     return Path(config.data_path) / config.wife_img_dir
 
 
-def get_random_wife_message() -> UniMessage:
-    wife_path = _wife_path()
-    imgs = os.listdir(wife_path)
-    img_name = random.choice(imgs)
-    img = wife_path / img_name
-    notice = "你今日抽取的老婆是" + os.path.splitext(img_name)[0]
-    message = UniMessage(Text(notice))
-    message.append(Image(path=img))
-    return message
-
-
 async def get_random_wife_md_message():
     """返回 QQ Markdown 消息（图片走 COS 公网 URL）+ 内联键盘。
 
@@ -51,15 +36,15 @@ async def get_random_wife_md_message():
     """
     wife_path = _wife_path()
     if not wife_path.exists():
-        return UniMessage(Text("老婆图库还没准备好，请先放入图片后再试~"))
+        return MessageSegment.text("老婆图库还没准备好，请先放入图片后再试~")
 
     try:
         imgs = os.listdir(wife_path)
     except OSError:
-        return UniMessage(Text("读取老婆图库失败了，稍后再试试吧~"))
+        return MessageSegment.text("读取老婆图库失败了，稍后再试试吧~")
 
     if not imgs:
-        return UniMessage(Text("老婆图库还是空的，请先放入图片后再试~"))
+        return MessageSegment.text("老婆图库还是空的，请先放入图片后再试~")
 
     img_name = random.choice(imgs)
     img = wife_path / img_name
@@ -69,10 +54,8 @@ async def get_random_wife_md_message():
     url = await bucket.get_or_upload_file(img, prefix=KEY_PREFIX["wife"])
 
     if url is None:
-        # COS 上传失败 → 降级到本地 Image
-        message = UniMessage(Text(f"你今日抽取的老婆是{name}"))
-        message.append(Image(path=img))
-        return message
+        # COS 上传失败 → 降级到本地图片
+        return MessageSegment.file_image(img) + MessageSegment.text(f"你今日抽取的老婆是{name}")
 
     # 成功：从 manifest 取宽高
     key = f"{KEY_PREFIX['wife']}/{img_name}"

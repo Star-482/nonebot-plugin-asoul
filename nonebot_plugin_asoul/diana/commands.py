@@ -165,8 +165,7 @@ def _build_costume_msg(result: dict) -> MessageSegment:
     if il := _md_image(img_url, img_w, img_h):
         return MessageSegment.markdown(il)
     if img := result.get("image"):
-        from nonebot_plugin_alconna.uniseg import Image as UniImage
-        return UniImage(raw=img)
+        return MessageSegment.file_image(img)
     return MessageSegment.markdown("（衣柜卡片渲染失败，请稍后再试）")
 
 
