@@ -48,9 +48,11 @@ async def poll_session_id(
             if body.get("code") != 0:
                 logger.warning(
                     f"[live-stop] 聚合 API 返回错误: code={body.get('code')} "
-                    f"message={body.get('message')}"
+                    f"message={body.get('message')} (第{attempt}/{max_retries}次)"
                 )
-                return None
+                if attempt < max_retries:
+                    await asyncio.sleep(interval)
+                continue
 
             session_id = body.get("data", 0)
             if session_id != 0:
@@ -88,7 +90,7 @@ async def screenshot_session_page(session_id: int) -> bytes | None:
             )
             await asyncio.sleep(10)
             el = page.locator("main.page-shell")
-            await el.wait_for(state="visible", timeout=10_000)
+            await el.wait_for(state="visible", timeout=20_000)
             return await el.screenshot(type="png")
         finally:
             await page.close()
