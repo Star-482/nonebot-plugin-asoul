@@ -157,7 +157,7 @@ async def _(event: GroupAtMessageCreateEvent):
     if content["tomorrow"]:
         text = text + "\n明天的安排有：" + ",\n ".join(content["tomorrow"])
     message = MessageSegment.file_image(img_path) + MessageSegment.text(text)
-    await message.send()
+    await week_activity.finish(message)
 
 
 @add_activity.handle()
