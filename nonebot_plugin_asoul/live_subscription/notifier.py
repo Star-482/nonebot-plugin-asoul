@@ -97,7 +97,7 @@ class Notifier:
 
         for gid in groups:
             await self._try_send(gid, message, info.uid, "live-start")
-            await asyncio.sleep(0.03)
+            await asyncio.sleep(1)
 
     async def on_live_stop(self, info: LiveInfo, _old_info: LiveInfo | None = None) -> None:
         if _old_info is None:
@@ -174,4 +174,4 @@ class Notifier:
 
         for gid in groups:
             await self._try_send(gid, message, uid, "live-stop")
-            await asyncio.sleep(0.03)
+            await asyncio.sleep(1)
