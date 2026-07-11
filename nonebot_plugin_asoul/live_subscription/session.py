@@ -5,14 +5,12 @@
 @Description: pixel-asoul.club 直播聚合会话查询 + 页面截图
 """
 import asyncio
-import logging
 
 import httpx
+from nonebot.log import logger
 
 from ..config import config
 from ..browser import get_browser
-
-logger = logging.getLogger(__name__)
 
 SESSION_API = "https://live.pixel-asoul.club/api/sessions/latest-aggregated"
 SESSION_PAGE = "https://live.pixel-asoul.club/session"

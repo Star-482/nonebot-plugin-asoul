@@ -6,6 +6,7 @@
 """
 import asyncio
 import io
+import traceback
 
 from nonebot import get_bot
 from nonebot.adapters.qq import MessageSegment
@@ -37,6 +38,18 @@ def _mk_link_button(url: str, label: str = "去直播间") -> Button:
             unsupport_tips=f"请手动打开：{url}",
         ),
     )
+
+
+def _on_notify_done(task: asyncio.Task) -> None:
+    """记录 fire-and-forget 通知任务中的未捕获异常."""
+    if task.cancelled():
+        logger.info("[live-stop] 通知任务被取消")
+        return
+    exc = task.exception()
+    if exc is not None:
+        logger.warning(
+            f"[live-stop] 通知任务未捕获异常:\n{traceback.format_exc()}"
+        )
 
 
 class Notifier:
@@ -94,9 +107,10 @@ class Notifier:
             return
 
         # 轮询 + 截图 + 上传可能长达 10 分钟，fire-and-forget 不阻塞轮询
-        asyncio.ensure_future(
+        task = asyncio.create_task(
             self._do_live_stop_notify(info, _old_info, groups)
         )
+        task.add_done_callback(_on_notify_done)
 
     async def _do_live_stop_notify(
         self, info: LiveInfo, old_info: LiveInfo, groups: list[str],

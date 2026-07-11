@@ -5,9 +5,7 @@
 @Description: 插件级共享 Playwright 浏览器实例管理
 """
 
-import logging
-
-logger = logging.getLogger(__name__)
+from nonebot.log import logger
 
 # ── 模块级单例 ──
 _pw = None
