@@ -103,10 +103,9 @@ class Notifier:
         if _old_info is None:
             return
         groups = manager.get_subscribed_groups(_old_info.uid)
-        if not groups:
-            return
 
         # 轮询 + 截图 + 上传可能长达 10 分钟，fire-and-forget 不阻塞轮询
+        # 无论有无订阅群都执行管线（截图数据上传后可供后续查看），groups 为空时只跳过发消息
         task = asyncio.create_task(
             self._do_live_stop_notify(info, _old_info, groups)
         )
