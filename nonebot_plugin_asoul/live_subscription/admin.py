@@ -34,8 +34,9 @@ overview_matcher = on_command(
 
 _INSTRUCTIONS = (
     "请确保您是群主/管理员或经过允许，点击下方按钮发送即可。\n"
-    "同时需要群主点击 bot 头像，打开右上角的设置，"
-    "允许机器人在群聊内主动发言。没有该选项请尝试更新 QQ。\n"
+    "❗同时需要群主点击 bot 头像，打开右上角的设置，"
+    "允许机器人在群聊内主动发言。❗没有该选项请尝试更新 QQ。\n"
+    "其他UP主请查看下方说明⬇️。\n"
     "[查看操作说明](https://docs.qq.com/doc/DRkFEbEhoa1Jzc05r)"
 )
 
@@ -125,6 +126,14 @@ async def _(event: GroupAtMessageCreateEvent, arg: Message = CommandArg()):
             continue
         await manager.subscribe(gid, upstream["uid"])
         results.append(f"✓ 已订阅 {upstream['name']}")
+
+    # 订阅成功后检查推送状态
+    if manager.is_push_ok(gid) is not True:
+        results.append(
+            "\n⚠️ 本群尚未开启主动推送，"
+            "请群主点击 bot 头像 → 右上角设置 → 允许机器人主动发言，"
+            "否则无法收到开播通知"
+        )
 
     await subscribe_matcher.finish("\n".join(results))
 

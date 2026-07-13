@@ -1,11 +1,12 @@
 """
 @Author: star_482
-@Date: 2025/3/28 
-@File: __init__.py 
+@Date: 2025/3/28
+@File: __init__.py
 @Description:
 """
 import random
 import os
+from pathlib import Path
 
 from nonebot.log import logger
 from nonebot.adapters import Event
@@ -22,12 +23,8 @@ from nonebot.adapters.qq.models import (
 from nonebot.params import CommandArg, RawCommand
 from nonebot.plugin import PluginMetadata
 from nonebot.plugin.on import on_command
-from nonebot import get_driver, require
+from nonebot import get_driver
 from nonebot.permission import SUPERUSER
-
-require("nonebot_plugin_alconna")
-from nonebot_plugin_alconna import on_alconna
-from nonebot_plugin_alconna.uniseg import Image, Text, UniMessage
 
 from .config import config, Config
 from . import start_up as _
@@ -37,6 +34,7 @@ from . import whateat as _whateat
 from . import storage as _storage
 from .utils import open_json, download_img
 from . import live_subscription as _live_subscription
+from . import manage as _manage
 from .fortune_manager import fortune_manager
 from .activity import save_img_activity, save_json_activity, get_relative_content
 from .markdown import get_about_xiaoran_markdown, get_test_markdown
@@ -132,9 +130,9 @@ async def _(event: GroupAtMessageCreateEvent):
             )
             await daily_fortune.finish(MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard))
         else:
-            message = UniMessage(Image(path=result["img_path"]))
-            message.append(Text("✨今日运势✨\n"))
-            await message.send()
+            img_path = Path(result["img_path"])
+            message = MessageSegment.file_image(img_path) + MessageSegment.text("✨今日运势✨\n")
+            await daily_fortune.finish(message)
     else:
         info = fortune_manager.get_cached_info(gid, uid)
         if info and info.get("url"):
@@ -143,15 +141,14 @@ async def _(event: GroupAtMessageCreateEvent):
             md = f"<@{uid}>\n### 你今天抽过签了，再给你看一次哦🤗\n\n{md_img}"
             await daily_fortune.finish(MessageSegment.markdown(md))
         else:
-            message = UniMessage(Text("你今天抽过签了，再给你看一次哦🤗\n"))
-            img_path = os.path.join(config.data_path, f"resource/out/{gid}_{uid}.png")
-            message.append(Image(path=img_path))
-            await message.send()
+            img_path = Path(config.data_path) / f"resource/out/{gid}_{uid}.png"
+            message = MessageSegment.file_image(img_path) + MessageSegment.text("你今天抽过签了，再给你看一次哦🤗\n")
+            await daily_fortune.finish(message)
 
 
 @week_activity.handle()
 async def _(event: GroupAtMessageCreateEvent):
-    img_path = config.data_path + "/activity/new_activity.jpg"
+    img_path = Path(config.data_path) / "activity" / "new_activity.jpg"
     content = get_relative_content()
     text = ""
     logger.info(content)
@@ -159,9 +156,8 @@ async def _(event: GroupAtMessageCreateEvent):
         text = text + "今天的安排有：" + ",\n ".join(content["today"])
     if content["tomorrow"]:
         text = text + "\n明天的安排有：" + ",\n ".join(content["tomorrow"])
-    message = UniMessage(Text(text))
-    message.append(Image(path=img_path))
-    await message.send()
+    message = MessageSegment.file_image(img_path) + MessageSegment.text(text)
+    await week_activity.finish(message)
 
 
 @add_activity.handle()

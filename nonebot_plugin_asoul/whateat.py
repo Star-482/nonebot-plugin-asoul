@@ -17,8 +17,7 @@ from nonebot.adapters.qq.models import (
     Permission,
     RenderData,
 )
-from nonebot_plugin_alconna import Alconna, on_alconna
-from nonebot_plugin_alconna.uniseg import Image, Text, UniMessage
+from nonebot.plugin.on import on_command
 
 from .config import config
 from .storage import get_bucket, KEY_PREFIX, manifest
@@ -108,7 +107,7 @@ async def _send_whateat(menu_type: Literal["drink", "eat"], action_verb: str, ma
                 rows=[InlineKeyboardRow(buttons=[
                     Button(
                         id=f"whateat_{menu_type}_again",
-                        render_data=RenderData(label=f"换一个", visited_label=f"换一个", style=1),
+                        render_data=RenderData(label="换一个", visited_label="换一个", style=1),
                         action=Action(type=2, permission=Permission(type=2), data=command,
                                       reply=False, enter=True, unsupport_tips=f"请手动发送：{command}"),
                     ),
@@ -117,46 +116,28 @@ async def _send_whateat(menu_type: Literal["drink", "eat"], action_verb: str, ma
         )
         await matcher.finish(MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard))
     else:
-        msg = UniMessage.text(f"🎉{BOT_NAME}建议你{action_verb}🎉\n{pic_name}")
-        msg.append(Image(path=str(pic_path)))
-        await msg.send()
+        message = MessageSegment.file_image(pic_path) + MessageSegment.text(f"🎉{BOT_NAME}建议你{action_verb}🎉\n{pic_name}")
+        await matcher.finish(message)
 
 
-eat_pic_matcher = on_alconna(
-    Alconna("今天吃什么"),
-    use_cmd_start=True,
-)
-
-drink_pic_matcher = on_alconna(
-    Alconna("今天喝什么"),
-    use_cmd_start=True,
-)
-
-eat_pic_matcher.shortcut(
-    r"^[今|明|后]?[天|日]?(早|中|晚)?(上|午|餐|饭|夜宵|宵夜|早|晚)吃(什么|啥|点啥)$",
-    fuzzy=False,
-)
-drink_pic_matcher.shortcut(
-    r"^[今|明|后]?[天|日]?(早|中|晚)?(上|午|餐|饭|夜宵|宵夜|早|晚)喝(什么|啥|点啥)$",
-    fuzzy=False,
-)
-
+eat_pic_matcher = on_command("今天吃什么", priority=config.command_priority)
+drink_pic_matcher = on_command("今天喝什么", priority=config.command_priority)
 
 @eat_pic_matcher.handle()
 async def handle_eat(event: Event):
     if _check_ismax(event):
-        await UniMessage.text(secrets.choice(MAX_MSG)).finish()
+        await eat_pic_matcher.finish(MessageSegment.text(secrets.choice(MAX_MSG)))
     in_cd, remain = _check_cd()
     if in_cd:
-        await UniMessage.text(f"cd冷却中, 还有{remain:.2f}秒").finish()
+        await eat_pic_matcher.finish(MessageSegment.text(f"cd冷却中, 还有{remain:.2f}秒"))
     await _send_whateat("eat", "吃", eat_pic_matcher)
 
 
 @drink_pic_matcher.handle()
 async def handle_drink(event: Event):
     if _check_ismax(event):
-        await UniMessage.text(secrets.choice(MAX_MSG)).finish()
+        await drink_pic_matcher.finish(MessageSegment.text(secrets.choice(MAX_MSG)))
     in_cd, remain = _check_cd()
     if in_cd:
-        await UniMessage.text(f"cd冷却中, 还有{remain:.2f}秒").finish()
+        await drink_pic_matcher.finish(MessageSegment.text(f"cd冷却中, 还有{remain:.2f}秒"))
     await _send_whateat("drink", "喝", drink_pic_matcher)

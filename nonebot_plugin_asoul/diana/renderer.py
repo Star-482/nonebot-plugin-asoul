@@ -8,6 +8,7 @@ from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader
 
+from ..browser import get_browser
 from .core import PetState
 
 logger = logging.getLogger(__name__)
@@ -29,18 +30,13 @@ class ImageRenderer:
         self.data_dir = Path(data_dir) if data_dir else Path(__file__).parent / "data"
         self.assets_dir = Path(assets_dir) if assets_dir else Path(__file__).parent / "assets"
         self.env = Environment(loader=FileSystemLoader(str(self.template_dir)))
-        self._browser = None
         # 服装名缓存：启动时一次性读 costumes.yaml，避免每次状态卡片渲染都重读。
         self._costumes_cache: dict[str, str] = {}
         self._load_costumes_yaml()
 
     async def _get_browser(self):
-        """懒初始化 Playwright 浏览器."""
-        if self._browser is None:
-            from playwright.async_api import async_playwright
-            self._pw = await async_playwright().start()
-            self._browser = await self._pw.chromium.launch(headless=True)
-        return self._browser
+        """获取共享 Playwright 浏览器实例."""
+        return await get_browser()
 
     async def _html_to_png(self, html: str, width: int = 600, height: int = 400) -> bytes:
         """将 HTML 字符串渲染为 PNG 字节."""
@@ -222,9 +218,5 @@ class ImageRenderer:
         return await self._html_to_png(html, 600, 520)
 
     async def close(self):
-        """关闭浏览器."""
-        if self._browser:
-            await self._browser.close()
-            self._browser = None
-        if hasattr(self, '_pw') and self._pw:
-            await self._pw.stop()
+        """清理渲染器资源（浏览器由 browser 模块统一管理，此处为占位）."""
+        pass
