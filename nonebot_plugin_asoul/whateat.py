@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import secrets
@@ -39,6 +40,39 @@ MAX_MSG = [
 ]
 
 _res_path = "data/whateat_pic"
+# 用户投稿元数据缓存：{menu_type: {filename: {"submitter": str, "date": str}}}
+_submission_cache: dict[str, dict[str, dict]] | None = None
+
+
+def _load_submissions() -> dict[str, dict[str, dict]]:
+    """懒加载用户投稿元数据，返回 {menu_type: {filename: {submitter, date}}}。"""
+    meta_file = Path(_res_path) / "user_submitted.json"
+    result: dict[str, dict[str, dict]] = {"eat_pic": {}, "drink_pic": {}}
+    if not meta_file.exists():
+        return result
+    try:
+        with open(meta_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return result
+    if isinstance(data, dict):
+        for key in ("eat_pic", "drink_pic"):
+            entries = data.get(key)
+            if isinstance(entries, dict):
+                result[key] = {
+                    name: {"submitter": info.get("submitter", ""), "date": info.get("date", "")}
+                    for name, info in entries.items()
+                    if isinstance(info, dict)
+                }
+    return result
+
+
+def _get_submission_info(menu_type: str, filename: str) -> dict | None:
+    """获取某张图片的投稿信息，非投稿返回 None（触发懒加载）。"""
+    global _submission_cache
+    if _submission_cache is None:
+        _submission_cache = _load_submissions()
+    return _submission_cache.get(f"{menu_type}_pic", {}).get(filename)
 
 
 def _get_today() -> str:
@@ -76,13 +110,14 @@ def _check_cd() -> tuple[bool, float]:
     return False, 0.0
 
 
-def _random_pic(menu_type: Literal["drink", "eat"]) -> tuple[Path, str]:
-    """从本地随机选取一张图片，返回 (路径, 名称)。"""
+def _random_pic(menu_type: Literal["drink", "eat"]) -> tuple[Path, str, dict | None]:
+    """从本地随机选取一张图片，返回 (路径, 名称, 投稿信息/None)。"""
     pic_dir = Path(_res_path) / f"{menu_type}_pic"
     pic_list = os.listdir(pic_dir)
     pic_name = secrets.choice(pic_list)
     pic_path = pic_dir / pic_name
-    return pic_path, Path(pic_name).stem
+    sub_info = _get_submission_info(menu_type, pic_name)
+    return pic_path, Path(pic_name).stem, sub_info
 
 
 async def _send_whateat(menu_type: Literal["drink", "eat"], action_verb: str, matcher):
@@ -92,7 +127,7 @@ async def _send_whateat(menu_type: Literal["drink", "eat"], action_verb: str, ma
     command = "/今天吃什么" if menu_type == "eat" else "/今天喝什么"
     food_word = "美食" if menu_type == "eat" else "饮品"
 
-    pic_path, pic_name = _random_pic(menu_type)
+    pic_path, pic_name, sub_info = _random_pic(menu_type)
     url = await bucket.get_or_upload_file(pic_path, prefix=prefix)
 
     if url is not None:
@@ -101,7 +136,16 @@ async def _send_whateat(menu_type: Literal["drink", "eat"], action_verb: str, ma
         w = entry.get("width", 0) if entry else 0
         h = entry.get("height", 0) if entry else 0
         md_img = bucket.build_md_image(url, w, h, pic_name)
-        md = f"### 🎉{BOT_NAME}建议你{action_verb}🎉\n\n**{pic_name}**\n\n{md_img}\n\n\n没有心仪的{food_word}？[点击投稿](https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ)"
+        submission_note = ""
+        if sub_info:
+            submitter = sub_info.get("submitter", "")
+            if submitter:
+                submission_note = f" 🏷️用户投稿 | 投稿人：{submitter}\n\n"
+            else:
+                submission_note = " 🏷️用户投稿\n\n"
+        else:
+            submission_note = "\n"
+        md = f"### 🎉{BOT_NAME}建议你{action_verb}🎉\n\n**{pic_name}**\n\n{submission_note}{md_img}\n\n\n没有心仪的{food_word}？[点击投稿](https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ)"
         keyboard = MessageKeyboard(
             content=InlineKeyboard(
                 rows=[InlineKeyboardRow(buttons=[
@@ -116,7 +160,14 @@ async def _send_whateat(menu_type: Literal["drink", "eat"], action_verb: str, ma
         )
         await matcher.finish(MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard))
     else:
-        message = MessageSegment.file_image(pic_path) + MessageSegment.text(f"🎉{BOT_NAME}建议你{action_verb}🎉\n{pic_name}")
+        submission_note = ""
+        if sub_info:
+            submitter = sub_info.get("submitter", "")
+            if submitter:
+                submission_note = f" 🏷️用户投稿 | 投稿人：{submitter}"
+            else:
+                submission_note = " 🏷️用户投稿"
+        message = MessageSegment.file_image(pic_path) + MessageSegment.text(f"🎉{BOT_NAME}建议你{action_verb}🎉\n{pic_name}{submission_note}")
         await matcher.finish(message)
 
 

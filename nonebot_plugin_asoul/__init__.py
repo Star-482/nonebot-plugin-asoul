@@ -76,8 +76,10 @@ async def _():
     entry = random.choice(list(data.values()))
     title = entry["title"]
     content = entry["content"]
+    submitter = entry.get("submitter", "")
     quoted = "\n".join(f"> {line}" if line else ">" for line in content.split("\n"))
-    md = f"## {title}\n\n{quoted}\n\n\n你也想发病？[点我投稿](https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ) 分享你的小作文吧~"
+    submission_note = f"🏷️用户投稿 | 投稿人：{submitter}\n\n" if submitter else ""
+    md = f"## {title}\n\n{quoted}\n\n\n{submission_note}你也想发病？[点我投稿](https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ) 分享你的小作文吧~"
     keyboard = MessageKeyboard(
         content=InlineKeyboard(
             rows=[
