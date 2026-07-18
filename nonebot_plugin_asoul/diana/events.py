@@ -214,13 +214,14 @@ class EventRegistry:
                 pet.triggered_dates.append(today_mmdd)
                 return [evt]
 
-        # 3. 随机事件：打乱列表，首个通过概率判定的触发
-        shuffled = list(self.random_events)
-        random.shuffle(shuffled)
-        for evt in shuffled:
-            if evt.judge():
-                evt.apply(pet)
-                return [evt]
+        # 3. 随机事件：先 40% 概率决定是否检测，通过后再打乱列表、按各事件概率判定
+        if random.random() < 0.4:
+            shuffled = list(self.random_events)
+            random.shuffle(shuffled)
+            for evt in shuffled:
+                if evt.judge():
+                    evt.apply(pet)
+                    return [evt]
 
         return []
 

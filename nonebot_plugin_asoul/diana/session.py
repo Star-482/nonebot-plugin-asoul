@@ -102,6 +102,23 @@ def _ensure_services(
     _init_shared_services(data_dir, assets_dir, saves_dir)
 
 
+def list_items(category: Optional[str] = None) -> list[dict]:
+    """列出互动动作（模块级，无需 session 实例）。供帮助页等无状态场景使用。"""
+    _ensure_services()
+    if category:
+        items = _item_registry.list_by_category(category)
+    else:
+        items = _item_registry.list_all()
+    return [
+        {
+            "id": it.id, "category": it.category,
+            "description": it.description, "emoji": it.emoji,
+            "requires": it.requires, "duration": it.duration,
+        }
+        for it in items
+    ]
+
+
 async def shutdown() -> None:
     """关闭共享资源（进程退出时调用）."""
     global _initialized, _renderer, _render_semaphore
@@ -284,7 +301,9 @@ class DianaSession:
                 "level": pet.level, "coins": pet.coins,
                 "title": pet.title, "outfit": pet.outfit,
                 "streak_days": pet.streak_days,
-                "busy_until": int(self._busy_until),
+                # 用 busy_remaining 而非 busy_until：后者在同一次忙碌期间不变，
+                # 会导致 R2 缓存命中、返回旧卡片；剩余时间每秒变化，使缓存随时间失效。
+                "busy_remaining": self.busy_remaining,
                 "busy_action": self.busy_action,
             }
             async def producer():

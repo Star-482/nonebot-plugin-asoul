@@ -334,7 +334,7 @@ achievements:
   feed_100:
     condition: {interaction_feed_count: 100}
     name: 米其林三星饲养员
-    text: "🍽️ 累计喂食100次！解锁称号「米其林三星饲养员」！你对然然的胃口了如指掌！"
+    text: "🍽️ 累计投喂100次！解锁称号「米其林三星饲养员」！你对然然的胃口了如指掌！"
     effects: {}
   play_50:
     condition: {interaction_play_count: 50}

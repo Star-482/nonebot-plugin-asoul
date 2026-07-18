@@ -21,13 +21,23 @@ from nonebot.internal.matcher import Matcher
 from nonebot.params import CommandArg
 from nonebot.plugin.on import on_command
 from nonebot.adapters.qq import Message, MessageSegment
+from nonebot.adapters.qq.models import (
+    Action,
+    Button,
+    InlineKeyboard,
+    InlineKeyboardRow,
+    MessageKeyboard,
+    Permission,
+    RenderData,
+)
 
 from ..config import config
 
 logger = logging.getLogger(__name__)
 
-from .session import DianaSession, shutdown
+from .session import DianaSession, shutdown, list_items
 from .exceptions import DianaError
+from ..markdown import _text_chain
 
 # ── stat 变化的中文标签和图标 ──
 _CHANGE_LABELS = [
@@ -126,6 +136,9 @@ def _build_interaction_msg(result: dict) -> MessageSegment:
         lines.append("")
         lines.append(cb)
 
+    # 防御：result 无任何可渲染字段（如 error_result）时降级为文本，避免空 markdown 被QQ拒绝
+    if not lines:
+        lines.append(str(result.get("text", "……")))
     return MessageSegment.markdown("\n".join(lines).strip())
 
 
@@ -173,7 +186,7 @@ async def send_result(result: dict, matcher: Matcher, kind: str = "text") -> Non
     """发送 result 为 QQ MD 消息.
 
     kind 由调用方显式指定：
-    - "interaction"  互动结果（喂食/玩耍/工作/社交/日常）
+    - "interaction"  互动结果（投喂/玩耍/工作/社交/日常）
     - "status"       状态卡片
     - "talk"         聊天
     - "costume"      衣柜
@@ -222,7 +235,7 @@ async def _shutdown() -> None:
 
 diana_status = on_command("然然状态", aliases={"状态", "我的然然", "然然信息"}, priority=config.command_priority)
 diana_wardrobe = on_command("然然衣柜", aliases={"服装", "衣柜", "换装列表"}, priority=config.command_priority)
-diana_feed = on_command("喂食", aliases={"喂", "吃", "投喂"}, priority=config.command_priority)
+diana_feed = on_command("投喂", aliases={"喂", "吃", "喂食"}, priority=config.command_priority)
 diana_play = on_command("玩耍", aliases={"玩"}, priority=config.command_priority)
 diana_work = on_command("打工", aliases={"直播", "工作"}, priority=config.command_priority)
 diana_costume = on_command("换装", aliases={"换上", "穿"}, priority=config.command_priority)
@@ -321,6 +334,49 @@ def _build_checkin_dup_msg(streak: int, balance: int) -> str:
     return f"你今天已经签到过了哦~\n🔥 连续签到 {streak} 天 | 🪙 余额 {balance} 嘉心糖币"
 
 
+def _mk_cmd_button(button_id: str, label: str, command: str) -> Button:
+    """构造指令注入按钮（点击插入输入框，用户自行发送）。"""
+    return Button(
+        id=button_id,
+        render_data=RenderData(label=label, visited_label=label, style=1),
+        action=Action(
+            type=2,
+            permission=Permission(type=2),
+            data=command,
+            reply=False,
+            enter=False,
+            unsupport_tips=f"请手动发送：{command}",
+        ),
+    )
+
+
+def _diana_nav_keyboard() -> MessageKeyboard:
+    """签到后引流到 Diana 其他玩法的按钮面板。"""
+    return MessageKeyboard(
+        content=InlineKeyboard(
+            rows=[
+                InlineKeyboardRow(buttons=[
+                    _mk_cmd_button("diana_nav_status", "看状态", "/然然状态"),
+                    _mk_cmd_button("diana_nav_costume", "换装", "/换装"),
+                    _mk_cmd_button("diana_nav_help", "更多玩法", "/然然帮助"),
+                ]),
+                InlineKeyboardRow(buttons=[
+                    _mk_cmd_button("diana_nav_feed", "投喂", "/投喂 鸡胸肉"),
+                    _mk_cmd_button("diana_nav_play", "玩耍", "/玩 连连看"),
+                    _mk_cmd_button("diana_nav_interact", "互动", "/互动 摸摸头"),
+                ]),
+            ]
+        )
+    )
+
+
+async def _send_checkin_reply(matcher: Matcher, text: str) -> None:
+    """发送签到回复（markdown 文本 + Diana 玩法引流按钮）。"""
+    await matcher.send(
+        MessageSegment.markdown(text) + MessageSegment.keyboard(_diana_nav_keyboard())
+    )
+
+
 # ── 签到 handler ──
 
 @diana_checkin.handle()
@@ -335,8 +391,7 @@ async def _(event: Event, matcher: Matcher):
 
     # 检查是否已签到
     if pet.last_checkin_date == today:
-        result = {"text": _build_checkin_dup_msg(pet.checkin_streak, pet.coins)}
-        await send_result(result, matcher, "text")
+        await _send_checkin_reply(matcher, _build_checkin_dup_msg(pet.checkin_streak, pet.coins))
         return
 
     # 计算连续签到天数
@@ -356,8 +411,7 @@ async def _(event: Event, matcher: Matcher):
     if user_id in existing_ids:
         pet.last_checkin_date = today
         session._save()
-        result = {"text": _build_checkin_dup_msg(pet.checkin_streak, pet.coins)}
-        await send_result(result, matcher, "text")
+        await _send_checkin_reply(matcher, _build_checkin_dup_msg(pet.checkin_streak, pet.coins))
         return
 
     global_rank = len(checkins) + 1
@@ -389,7 +443,7 @@ async def _(event: Event, matcher: Matcher):
         balance=pet.coins,
         is_dm=is_dm,
     )
-    await send_result({"text": msg}, matcher, "text")
+    await _send_checkin_reply(matcher, msg)
 
 
 # ── 互动 handler（5 个统一路径：interact）──
@@ -398,12 +452,13 @@ async def _(event: Event, matcher: Matcher):
 async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     action_id = _extract_arg(args)
     if not action_id:
-        await diana_feed.finish("要吃什么呢？比如：/吃 鸡胸肉、/吃 小草莓、/吃 薯片")
+        await diana_feed.finish("要投喂什么呢？比如：/投喂 鸡胸肉、/投喂 小草莓、/投喂 薯片")
     session = await get_session(event.get_user_id())
     try:
         result = await session.interact(action_id)
     except DianaError as exc:
-        result = _error_result(exc)
+        await send_result(_error_result(exc), matcher, "text")
+        return
     await send_result(result, matcher, "interaction")
 
 
@@ -416,7 +471,8 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     try:
         result = await session.interact(action_id)
     except DianaError as exc:
-        result = _error_result(exc)
+        await send_result(_error_result(exc), matcher, "text")
+        return
     await send_result(result, matcher, "interaction")
 
 
@@ -429,7 +485,8 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     try:
         result = await session.interact(action_id)
     except DianaError as exc:
-        result = _error_result(exc)
+        await send_result(_error_result(exc), matcher, "text")
+        return
     await send_result(result, matcher, "interaction")
 
 
@@ -442,7 +499,8 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     try:
         result = await session.interact(action_id)
     except DianaError as exc:
-        result = _error_result(exc)
+        await send_result(_error_result(exc), matcher, "text")
+        return
     await send_result(result, matcher, "interaction")
 
 
@@ -455,7 +513,8 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     try:
         result = await session.interact(action_id)
     except DianaError as exc:
-        result = _error_result(exc)
+        await send_result(_error_result(exc), matcher, "text")
+        return
     await send_result(result, matcher, "interaction")
 
 
@@ -527,17 +586,77 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     await send_result(result, matcher, "talk")
 
 
+# ── 然然帮助（分页）──
+
+# (category, 中文名, 指令前缀, 简介)
+_HELP_CATEGORIES = [
+    ("food", "投喂", "/投喂", "给然然喂好吃的，恢复饱腹度"),
+    ("play", "玩耍", "/玩", "陪然然玩耍，消耗体力换心情"),
+    ("work", "打工", "/打工", "然然去直播赚钱"),
+    ("social", "互动", "/互动", "和然然亲密互动"),
+    ("daily", "日常", "/日常", "然然的日常活动"),
+]
+
+_CATEGORY_ALIASES = {
+    "投喂": "food", "食物": "food", "喂食": "food", "food": "food",
+    "玩耍": "play", "玩": "play", "play": "play",
+    "打工": "work", "工作": "work", "直播": "work", "work": "work",
+    "互动": "social", "社交": "social", "social": "social",
+    "日常": "daily", "daily": "daily",
+}
+
+
+def _build_diana_help_overview() -> str:
+    """帮助总览：各分类入口 + 其他指令。"""
+    lines = ["# 🍓 然然养成帮助", "点击分类查看全部可选项～", ""]
+    for _cat, name, _prefix, desc in _HELP_CATEGORIES:
+        lines.append(f"## {name}")
+        lines.append(desc)
+        lines.append(_text_chain(f"/然然帮助 {name}", f"查看{name}列表"))
+        lines.append("")
+    lines.append("## 其他指令")
+    others = [
+        ("/签到", "签到"),
+        ("/然然状态", "状态"),
+        ("/换装", "换装"),
+        ("/然然衣柜", "衣柜"),
+        ("/解锁", "解锁服装"),
+        ("/然然", "聊天"),
+    ]
+    lines.append(" · ".join(_text_chain(t, s) for t, s in others))
+    return "\n".join(lines)
+
+
+def _build_diana_help_category(category: str) -> str:
+    """某分类的详细 item 列表，每项用文字链点击即插入对应指令。"""
+    meta = next((c for c in _HELP_CATEGORIES if c[0] == category), None)
+    if meta is None:
+        return "未找到该分类"
+    _cat, name, prefix, desc = meta
+    items = list_items(category)
+    if not items:
+        return f"暂无{name}项目"
+    lines = [f"# {name}列表", desc, ""]
+    for i in range(0, len(items), 3):
+        chunk = items[i:i + 3]
+        links = [
+            _text_chain(f"{prefix} {it['id']}", f"{it['emoji']} {it['id']}")
+            for it in chunk
+        ]
+        lines.append(" · ".join(links))
+    lines.append("")
+    lines.append(f"返回{_text_chain('/然然帮助', '帮助总览')}")
+    return "\n".join(lines)
+
+
 @diana_help.handle()
-async def _():
-    help_text = (
-        "🍓 嘉然 Diana 宠物养成系统\n\n"
-        "查看：/然然状态、/然然衣柜\n"
-        "喂食：/吃 鸡胸肉、/吃 小草莓、/吃 薯片\n"
-        "玩耍：/玩 连连看、/玩 宅舞一支、/玩 你画我猜\n"
-        "打工：/打工 日常直播、/打工 团播、/打工 小剧场\n"
-        "换装：/换装、/换装 团服、/解锁 春节服\n"
-        "互动：/互动 摸摸头、/互动 Mua、/互动 喊一米八\n"
-        "日常：/日常 休息、/日常 逛街、/日常 刷B站\n"
-        "聊天：/然然 今天想吃什么"
-    )
-    await diana_help.finish(help_text)
+async def _(args: Message = CommandArg()):
+    arg = _extract_arg(args)
+    category = _CATEGORY_ALIASES.get(arg)
+    if category:
+        text = _build_diana_help_category(category)
+    elif arg:
+        text = f"未找到分类「{arg}」。\n返回{_text_chain('/然然帮助', '帮助总览')}"
+    else:
+        text = _build_diana_help_overview()
+    await diana_help.finish(MessageSegment.markdown(text))
