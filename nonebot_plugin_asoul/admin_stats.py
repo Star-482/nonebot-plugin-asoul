@@ -94,6 +94,26 @@ def read_recent_details(limit: int = 10) -> list[dict]:
     return records
 
 
+def _read_details_for_date(date_str: str) -> list[dict]:
+    """读取某一天的全部使用明细记录（按 date 字段过滤）。"""
+    path = _detail_path()
+    if not os.path.exists(path):
+        return []
+    records = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if record.get("date") == date_str:
+                records.append(record)
+    return records
+
+
 def _top_items(data: dict, limit: int = 10) -> list[tuple[str, int]]:
     return sorted(data.items(), key=lambda item: item[1], reverse=True)[:limit]
 
@@ -133,8 +153,6 @@ def _build_record(event: Event, matcher: Matcher, state: T_State) -> Optional[di
     raw_command = prefix.get(RAW_CMD_KEY)
     command_arg = prefix.get(CMD_ARG_KEY)
     if not command or not raw_command:
-        # on_alconna / AlconnaMatcher 不走 NoneBot 原生 CMD_KEY 路径，
-        # 降级从消息文本中提取命令名
         msg_text = event.get_message().extract_plain_text().strip()
         if not msg_text:
             return None
@@ -190,12 +208,29 @@ stats_detail = on_command("统计明细", priority=config.command_priority, perm
 async def _():
     summary = _load_summary()
     today = datetime.now().astimezone().strftime("%Y-%m-%d")
+    today_by_command: dict[str, int] = {}
+    today_users: set[str] = set()
+    for record in _read_details_for_date(today):
+        command = record.get("command", "未知")
+        today_by_command[command] = today_by_command.get(command, 0) + 1
+        if user_id := record.get("user_id"):
+            today_users.add(user_id)
+    if today_by_command:
+        command_lines = "\n".join(
+            f"  {cmd}: {count}"
+            for cmd, count in sorted(
+                today_by_command.items(), key=lambda item: item[1], reverse=True
+            )
+        )
+    else:
+        command_lines = "  暂无数据"
     text = (
         "命令统计总览\n"
         f"总调用次数：{summary.get('total', 0)}\n"
         f"今日调用次数：{summary.get('by_date', {}).get(today, 0)}\n"
-        f"命令数量：{len(summary.get('by_command', {}))}\n"
+        f"今日使用人数：{len(today_users)}\n"
         f"用户数量：{len(summary.get('by_user', {}))}\n"
+        f"今日各命令使用次数：\n{command_lines}\n"
         f"最近更新时间：{summary.get('last_updated') or '暂无'}"
     )
     await stats_overview.finish(text)

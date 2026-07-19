@@ -60,7 +60,7 @@ week_activity = on_command("本周日程", aliases={"日程"}, priority=config.c
 add_activity = on_command("添加日程", priority=config.command_priority, permission=SUPERUSER)
 
 test_markdown = on_command("测试markdown", aliases={"测试md"}, priority=config.command_priority)
-about_xiaoran = on_command("关于小然", aliases={"小然", "关于然然"}, priority=config.command_priority)
+about_xiaoran = on_command("关于小然", aliases={"小然", "关于然然", "菜单", "帮助", "指令"}, priority=config.command_priority)
 random_wife_matcher = on_command("抽老婆", priority=config.command_priority)
 
 
