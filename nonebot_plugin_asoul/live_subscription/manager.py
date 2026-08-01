@@ -200,5 +200,9 @@ class SubscriptionManager:
             return False
         return None
 
+    def get_push_ok_groups(self) -> list[str]:
+        """返回所有已验证可主动推送的群 openid。"""
+        return sorted(self._push_ok)
+
 
 manager = SubscriptionManager()

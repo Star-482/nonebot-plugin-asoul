@@ -27,9 +27,15 @@ from .client import run_agent
 from .stats import record_usage
 from .tools import ToolContext
 
+async def _not_bot(event: Event) -> bool:
+    """过滤 bot 发送的消息（避免回复其他 bot / 自我循环）。"""
+    author = getattr(event, "author", None)
+    return not getattr(author, "bot", False)
+
+
 # 兜底 matcher：priority=command_priority+50，排在所有命令之后
-# rule=to_me()：只响应私聊 / 群@，过滤掉"允许获取群内所有消息"时群内非@的发言
-agent_matcher = on_message(priority=config.command_priority + 50, rule=to_me())
+# rule=to_me() & _not_bot：只响应私聊/群@，且不响应 bot 发送的消息
+agent_matcher = on_message(priority=config.command_priority + 50, rule=to_me() & _not_bot)
 
 # 每用户对话历史 LRU（进程内，bot 重启清空）
 _HISTORY: OrderedDict[str, list[dict]] = OrderedDict()
