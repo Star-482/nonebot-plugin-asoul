@@ -147,6 +147,9 @@ def _build_record(event: Event, matcher: Matcher, state: T_State) -> Optional[di
     module_name = matcher.module_name or ""
     if not _is_asoul_module(module_name):
         return None
+    # agent 兜底 matcher 不是命令，不计入命令统计
+    if module_name.endswith(".agent.commands"):
+        return None
 
     prefix = state.get(PREFIX_KEY) or {}
     command = prefix.get(CMD_KEY)
@@ -224,6 +227,20 @@ async def _():
         )
     else:
         command_lines = "  暂无数据"
+    # agent 统计（对话次数 + token 消耗）
+    try:
+        from .agent.stats import get_summary as _agent_summary
+        agent_stats = _agent_summary()
+        today_agent = agent_stats.get(today, {})
+        agent_total_calls = sum(d.get("calls", 0) for d in agent_stats.values())
+        agent_total_tokens = sum(d.get("total_tokens", 0) for d in agent_stats.values())
+        agent_lines = (
+            f"今日 agent 对话：{today_agent.get('calls', 0)} 次，"
+            f"消耗 {today_agent.get('total_tokens', 0)} tokens\n"
+            f"agent 累计对话：{agent_total_calls} 次，消耗 {agent_total_tokens} tokens"
+        )
+    except Exception:
+        agent_lines = "agent 统计不可用"
     text = (
         "命令统计总览\n"
         f"总调用次数：{summary.get('total', 0)}\n"
@@ -231,6 +248,7 @@ async def _():
         f"今日使用人数：{len(today_users)}\n"
         f"用户数量：{len(summary.get('by_user', {}))}\n"
         f"今日各命令使用次数：\n{command_lines}\n"
+        f"{agent_lines}\n"
         f"最近更新时间：{summary.get('last_updated') or '暂无'}"
     )
     await stats_overview.finish(text)

@@ -4,7 +4,8 @@
 @File: admin
 @Description: 开播订阅管理命令：订阅开播 / 取消订阅 / 订阅列表 / 订阅全览（SUPERUSER）。
 """
-from nonebot.adapters.qq import GroupAtMessageCreateEvent, Message, MessageSegment
+from nonebot.adapters import Event
+from nonebot.adapters.qq import Message, MessageSegment
 from nonebot.adapters.qq.models import (
     Action,
     Button,
@@ -105,9 +106,11 @@ def _parse_keywords(text: str) -> list[str]:
 # ── 订阅开播 ──
 
 @subscribe_matcher.handle()
-async def _(event: GroupAtMessageCreateEvent, arg: Message = CommandArg()):
+async def _(event: Event, arg: Message = CommandArg()):
+    gid = getattr(event, "group_openid", None)
+    if not gid:
+        await subscribe_matcher.finish("开播订阅仅在群内可用~")
     keywords = _parse_keywords(arg.extract_plain_text())
-    gid = event.group_openid
 
     if not keywords:
         md, keyboard = _build_md_keyboard("/订阅开播")
@@ -141,9 +144,11 @@ async def _(event: GroupAtMessageCreateEvent, arg: Message = CommandArg()):
 # ── 取消订阅 ──
 
 @unsubscribe_matcher.handle()
-async def _(event: GroupAtMessageCreateEvent, arg: Message = CommandArg()):
+async def _(event: Event, arg: Message = CommandArg()):
+    gid = getattr(event, "group_openid", None)
+    if not gid:
+        await unsubscribe_matcher.finish("开播订阅仅在群内可用~")
     keywords = _parse_keywords(arg.extract_plain_text())
-    gid = event.group_openid
 
     if not keywords:
         md, keyboard = _build_md_keyboard("/取消订阅")
@@ -169,8 +174,10 @@ async def _(event: GroupAtMessageCreateEvent, arg: Message = CommandArg()):
 # ── 订阅列表 ──
 
 @list_matcher.handle()
-async def _(event: GroupAtMessageCreateEvent):
-    gid = event.group_openid
+async def _(event: Event):
+    gid = getattr(event, "group_openid", None)
+    if not gid:
+        await list_matcher.finish("开播订阅仅在群内可用~")
     subs = await manager.list_for_group(gid)
     if not subs:
         await list_matcher.finish(
