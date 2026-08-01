@@ -120,8 +120,11 @@ def _random_pic(menu_type: Literal["drink", "eat"]) -> tuple[Path, str, dict | N
     return pic_path, Path(pic_name).stem, sub_info
 
 
-async def _send_whateat(menu_type: Literal["drink", "eat"], action_verb: str, matcher):
-    """eat 和 drink 的共用发送逻辑。"""
+async def build_whateat_msg(menu_type: Literal["drink", "eat"], action_verb: str) -> MessageSegment:
+    """构造吃什么/喝什么的完整 md 消息（含键盘），不绑 matcher。
+
+    供命令 handler 和 agent 工具复用，保证两路径返回一致的模板。
+    """
     bucket = get_bucket()
     prefix = KEY_PREFIX["whateat_eat"] if menu_type == "eat" else KEY_PREFIX["whateat_drink"]
     command = "/今天吃什么" if menu_type == "eat" else "/今天喝什么"
@@ -158,7 +161,7 @@ async def _send_whateat(menu_type: Literal["drink", "eat"], action_verb: str, ma
                 ])]
             )
         )
-        await matcher.finish(MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard))
+        return MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard)
     else:
         submission_note = ""
         if sub_info:
@@ -167,8 +170,12 @@ async def _send_whateat(menu_type: Literal["drink", "eat"], action_verb: str, ma
                 submission_note = f" 🏷️用户投稿 | 投稿人：{submitter}"
             else:
                 submission_note = " 🏷️用户投稿"
-        message = MessageSegment.file_image(pic_path) + MessageSegment.text(f"🎉{BOT_NAME}建议你{action_verb}🎉\n{pic_name}{submission_note}")
-        await matcher.finish(message)
+        return MessageSegment.file_image(pic_path) + MessageSegment.text(f"🎉{BOT_NAME}建议你{action_verb}🎉\n{pic_name}{submission_note}")
+
+
+async def _send_whateat(menu_type: Literal["drink", "eat"], action_verb: str, matcher):
+    """eat 和 drink 的共用发送逻辑。"""
+    await matcher.finish(await build_whateat_msg(menu_type, action_verb))
 
 
 eat_pic_matcher = on_command("今天吃什么", priority=config.command_priority)

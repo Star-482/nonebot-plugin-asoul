@@ -8,6 +8,18 @@ import json
 import os
 import random
 from datetime import date
+from pathlib import Path
+
+from nonebot.adapters.qq import MessageSegment
+from nonebot.adapters.qq.models import (
+    Action,
+    Button,
+    InlineKeyboard,
+    InlineKeyboardRow,
+    MessageKeyboard,
+    Permission,
+    RenderData,
+)
 
 from .utils import open_json, drawing, pick_fortune_base, drawing_to_bytes
 from .config import config
@@ -88,6 +100,32 @@ class FortuneManager:
     def save_data(self):
         with open(self.fortune_data_path, "w", encoding="utf-8") as f:
             json.dump(self.fortune_data, f, ensure_ascii=False, indent=4)
+
+
+def build_fortune_md(result: dict, uid: str) -> MessageSegment:
+    """构造今日运势的完整 md 消息（含键盘），不绑 matcher。供命令和 agent 工具复用。"""
+    if "url" in result:
+        bucket = get_bucket()
+        md_img = bucket.build_md_image(
+            result["url"], result.get("w", 420), result.get("h", 420), result.get("title", "")
+        )
+        md = f"<@{uid}>\n### ✨今日运势✨\n\n{md_img}"
+        keyboard = MessageKeyboard(
+            content=InlineKeyboard(
+                rows=[InlineKeyboardRow(buttons=[
+                    Button(
+                        id="fortune_draw",
+                        render_data=RenderData(label="我也要抽签", visited_label="我也要抽签", style=1),
+                        action=Action(type=2, permission=Permission(type=2), data="/今日运势",
+                                      reply=False, enter=False, unsupport_tips="请手动发送：/今日运势"),
+                    ),
+                ])]
+            )
+        )
+        return MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard)
+    else:
+        img_path = Path(result["img_path"])
+        return MessageSegment.file_image(img_path) + MessageSegment.text("✨今日运势✨\n")
 
 
 fortune_manager = FortuneManager()

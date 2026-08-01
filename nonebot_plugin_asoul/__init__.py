@@ -10,7 +10,7 @@ from pathlib import Path
 
 from nonebot.log import logger
 from nonebot.adapters import Event
-from nonebot.adapters.qq import Message, MessageEvent, MessageSegment, GroupAtMessageCreateEvent
+from nonebot.adapters.qq import Message, MessageEvent, MessageSegment
 from nonebot.adapters.qq.models import (
     Action,
     Button,
@@ -35,7 +35,8 @@ from . import storage as _storage
 from .utils import open_json, download_img
 from . import live_subscription as _live_subscription
 from . import manage as _manage
-from .fortune_manager import fortune_manager
+from . import agent as _agent
+from .fortune_manager import fortune_manager, build_fortune_md
 from .activity import save_img_activity, save_json_activity, get_relative_content
 from .markdown import get_about_xiaoran_markdown, get_test_markdown
 from .random_wife import get_random_wife_md_message
@@ -106,35 +107,15 @@ async def _():
 
 
 @daily_fortune.handle()
-async def _(event: GroupAtMessageCreateEvent):
-    gid = event.group_openid
+async def _(event: Event):
+    gid = getattr(event, "group_openid", None) or "dm"
     uid = event.get_user_id()
     # admin 每次都重新生成，方便调试
     is_admin = event.get_user_id() in get_driver().config.superusers
     if is_admin or fortune_manager.check_data(gid, uid):
         result = await fortune_manager.do_draw(gid, uid)
         fortune_manager.save_data()
-        if "url" in result:
-            bucket = get_bucket()
-            md_img = bucket.build_md_image(result["url"], result["w"], result["h"], result["title"])
-            md = f"<@{uid}>\n### ✨今日运势✨\n\n{md_img}"
-            keyboard = MessageKeyboard(
-                content=InlineKeyboard(
-                    rows=[InlineKeyboardRow(buttons=[
-                        Button(
-                            id="fortune_draw",
-                            render_data=RenderData(label="我也要抽签", visited_label="我也要抽签", style=1),
-                            action=Action(type=2, permission=Permission(type=2), data="/今日运势",
-                                          reply=False, enter=False, unsupport_tips="请手动发送：/今日运势"),
-                        ),
-                    ])]
-                )
-            )
-            await daily_fortune.finish(MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard))
-        else:
-            img_path = Path(result["img_path"])
-            message = MessageSegment.file_image(img_path) + MessageSegment.text("✨今日运势✨\n")
-            await daily_fortune.finish(message)
+        await daily_fortune.finish(build_fortune_md(result, uid))
     else:
         info = fortune_manager.get_cached_info(gid, uid)
         if info and info.get("url"):
@@ -149,7 +130,7 @@ async def _(event: GroupAtMessageCreateEvent):
 
 
 @week_activity.handle()
-async def _(event: GroupAtMessageCreateEvent):
+async def _(event: Event):
     img_path = Path(config.data_path) / "activity" / "new_activity.jpg"
     content = get_relative_content()
     text = ""
@@ -163,7 +144,7 @@ async def _(event: GroupAtMessageCreateEvent):
 
 
 @add_activity.handle()
-async def _(event: GroupAtMessageCreateEvent, arg: Message = CommandArg()):
+async def _(event: MessageEvent, arg: Message = CommandArg()):
     msg = event.get_message()
     image_segment = next((seg for seg in msg if seg.type == "image"), None)
     if image_segment:
