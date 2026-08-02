@@ -20,8 +20,8 @@ class AchievementFlag:
     MEME_TRIGGERS_COUNT = "meme_triggers_count"
 
 # ── 衰减 / 恢复速率 ──
-DECAY_HUNGER_PER_HOUR = 1.0        # 每小时饱腹 -1.0
-DECAY_MOOD_PER_HOUR = 2.0          # 每小时心情 -2.0
+DECAY_HUNGER_PER_HOUR = 0.5        # 每小时饱腹 -0.5
+DECAY_MOOD_PER_HOUR = 0.5          # 每小时心情 -0.5
 ENERGY_RECOVERY_PER_HOUR = 2.5     # 每小时体力 +2.5（被动恢复）
 DECAY_CLOSENESS_PER_DAY = 3.0      # 每天未互动亲密度 -3
 

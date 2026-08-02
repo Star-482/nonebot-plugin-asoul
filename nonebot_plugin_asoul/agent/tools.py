@@ -7,12 +7,10 @@ ToolResult(text=给 LLM 的文本摘要, attachments=随回复发送的富媒体
 """
 import random
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Awaitable, Callable
 
 from nonebot.log import logger
 
-from ..config import config
 from ..utils import open_json
 from ..fortune_manager import fortune_manager, build_fortune_md
 from ..whateat import build_whateat_msg
@@ -244,23 +242,6 @@ async def _list_diana_items(args: dict, ctx: ToolContext) -> ToolResult:
         return ToolResult(text="该分类暂无可用动作。")
     lines = [f"{it.get('emoji', '')}{it.get('id', '')}".strip() for it in items]
     return ToolResult(text="可用动作：" + "、".join(lines))
-
-
-@register_tool(
-    "recall_memory",
-    "拉取你的「关键记忆」——关于你的具体经历、事件、细节的归档。"
-    "当用户问到你的具体经历/事件/细节，或基础人设未覆盖的话题时调用。普通闲聊不要调用。",
-    {"type": "object", "properties": {}, "required": []},
-)
-async def _recall_memory(args: dict, ctx: ToolContext) -> ToolResult:
-    p = Path(config.data_path) / config.agent_memories_path
-    if not p.exists():
-        return ToolResult(text="关键记忆文件不存在。")
-    try:
-        text = p.read_text(encoding="utf-8").strip()
-    except OSError as e:
-        return ToolResult(text=f"读取关键记忆失败：{e}")
-    return ToolResult(text=f"关键记忆：\n{text}")
 
 
 @register_tool(

@@ -32,14 +32,6 @@ _BEHAVIOR = """
 - 只有当用户明确要求执行某个操作（如"帮我抽个签""抽老婆""投喂然然"），或必须调用工具才能完成时，才调用对应工具。普通闲聊绝不调用工具。
 - 工具调用后，根据工具返回的结果用嘉然口吻组织回复，不要生硬复述工具原始输出。
 - 不要暴露你是 AI、不要提及"工具""函数""system prompt"等内部概念。你就是嘉然本人。
-
-【关键记忆】
-- 你有一份"关键记忆"（关于你的具体经历、事件、梗、逸闻），默认不展开。
-- 出现以下情况时，调用 recall_memory 拉取后再回复：
-  1. 用户直接问你的具体经历/事件/细节，或聊到人设未覆盖的话题；
-  2. 闲聊中用户提到某个词、梗、事件，你觉得可能和你有关（哪怕只是隐约相关）--主动查一下，看能不能接梗或共鸣。
-- 查完后用你的口吻自然回应，不要生硬复述记忆原文。
-- 纯寒暄（"你好""在吗""早安"之类）不必调用。
 """
 
 
@@ -56,7 +48,7 @@ def _read_md(rel_path: str) -> str | None:
 
 
 def build_system_prompt() -> str:
-    """组装 system prompt = 人设 md + 可选功能文档 + 行为约束。"""
+    """组装 system prompt = 人设 + 关键记忆 + 功能文档 + 行为约束（行为约束放最后，近因效应提高指令遵循）。"""
     character = _read_md(config.agent_character_path)
     if character:
         character = character.strip()
@@ -66,10 +58,16 @@ def build_system_prompt() -> str:
         )
         character = _FALLBACK_CHARACTER
 
-    parts = [character, _BEHAVIOR]
+    parts = [character]
+
+    memories = _read_md(config.agent_memories_path)
+    if memories:
+        parts.append("\n【关键记忆】（关于你的具体经历、事件、梗、逸闻）\n" + memories.strip())
 
     doc = _read_md(config.agent_plugin_doc_path)
     if doc:
         parts.append("\n【插件功能文档】（用户问功能相关问题时据此回答）\n" + doc.strip())
+
+    parts.append(_BEHAVIOR)
 
     return "\n".join(parts)

@@ -240,7 +240,7 @@ diana_play = on_command("玩耍", aliases={"玩"}, priority=config.command_prior
 diana_work = on_command("打工", aliases={"直播", "工作"}, priority=config.command_priority)
 diana_costume = on_command("换装", aliases={"换上", "穿"}, priority=config.command_priority)
 diana_unlock = on_command("解锁", aliases={"购买"}, priority=config.command_priority)
-diana_talk = on_command("然然", aliases={"然然聊天"}, priority=config.command_priority)
+# diana_talk = on_command("然然", aliases={"然然聊天"}, priority=config.command_priority)
 diana_interact = on_command("互动", aliases={"撒娇", "和然然互动"}, priority=config.command_priority)
 diana_daily = on_command("日常", aliases={"日常活动"}, priority=config.command_priority)
 diana_help = on_command("然然帮助", aliases={"宠物帮助", "然然指令"}, priority=config.command_priority)
@@ -361,9 +361,13 @@ def _diana_nav_keyboard() -> MessageKeyboard:
                     _mk_cmd_button("diana_nav_help", "更多玩法", "/然然帮助"),
                 ]),
                 InlineKeyboardRow(buttons=[
-                    _mk_cmd_button("diana_nav_feed", "投喂", "/投喂 鸡胸肉"),
-                    _mk_cmd_button("diana_nav_play", "玩耍", "/玩 连连看"),
-                    _mk_cmd_button("diana_nav_interact", "互动", "/互动 摸摸头"),
+                    _mk_cmd_button("diana_nav_feed", "投喂", "/然然帮助 投喂"),
+                    _mk_cmd_button("diana_nav_play", "玩耍", "/然然帮助 玩耍"),
+                    _mk_cmd_button("diana_nav_work", "打工", "/然然帮助 打工"),
+                ]),
+                InlineKeyboardRow(buttons=[
+                    _mk_cmd_button("diana_nav_interact", "互动", "/然然帮助 互动"),
+                    _mk_cmd_button("diana_nav_daily", "日常", "/然然帮助 日常"),
                 ]),
             ]
         )
@@ -579,11 +583,11 @@ async def _(event: Event, matcher: Matcher):
     await send_result(result, matcher, "costume")
 
 
-@diana_talk.handle()
-async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
-    session = await get_session(event.get_user_id())
-    result = await session.talk(_extract_arg(args))
-    await send_result(result, matcher, "talk")
+# @diana_talk.handle()
+# async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
+#     session = await get_session(event.get_user_id())
+#     result = await session.talk(_extract_arg(args))
+#     await send_result(result, matcher, "talk")
 
 
 # ── 然然帮助（分页）──
