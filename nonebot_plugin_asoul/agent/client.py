@@ -25,14 +25,14 @@ def _get_client() -> httpx.AsyncClient:
     return _client
 
 
-async def _chat_completion(messages: list[dict], tools: list[dict]) -> dict:
+async def _chat_completion(messages: list[dict], tools: list[dict], temperature: float = 0.8) -> dict:
     """调用 /chat/completions，返回响应 JSON。"""
     client = _get_client()
     url = config.agent_base_url.rstrip("/") + "/chat/completions"
     payload: dict = {
         "model": config.agent_model,
         "messages": messages,
-        "temperature": 0.8,
+        "temperature": temperature,
     }
     if tools:
         payload["tools"] = tools
@@ -112,6 +112,10 @@ async def run_agent(messages: list[dict], ctx: ToolContext) -> tuple[list[str], 
         assistant_msg: dict = {"role": "assistant", "content": content}
         if tool_calls:
             assistant_msg["tool_calls"] = tool_calls
+            # DeepSeek thinking_mode：工具调用必须回传 reasoning_content，否则 API 400
+            reasoning = choice.get("reasoning_content")
+            if reasoning is not None:
+                assistant_msg["reasoning_content"] = reasoning
         working.append(assistant_msg)
         new_messages.append(assistant_msg)
 
@@ -144,3 +148,52 @@ async def run_agent(messages: list[dict], ctx: ToolContext) -> tuple[list[str], 
     working.append(fallback_msg)
     new_messages.append(fallback_msg)
     return fallback, attachments, new_messages, usage
+
+
+async def summarize_history(old_summary: str | None, messages: list[dict]) -> str:
+    """把一段历史对话 + 旧摘要压缩成新的摘要文本（用于历史压缩）。
+
+    只取本轮被压缩消息 + 上一版摘要，成本有界。被压缩的原始消息由调用方留存到
+    compressed 存档，本函数产出滚动摘要注入后续请求。返回空串时回退到旧摘要。
+    """
+    convo: list[str] = []
+    for m in messages:
+        role = m.get("role")
+        if role == "user":
+            convo.append(f"用户：{m.get('content', '')}")
+        elif role == "assistant":
+            c = m.get("content") or ""
+            tcs = m.get("tool_calls")
+            if tcs:
+                names = ",".join((tc.get("function", {}) or {}).get("name", "") for tc in tcs)
+                c = f"[调用工具:{names}] " + c
+            convo.append(f"嘉然：{c}")
+        elif role == "tool":
+            # 工具结果可能很长，截断
+            convo.append(f"[工具结果]：{(m.get('content') or '')[:200]}")
+        # role == system（条数指令）跳过，对摘要无意义
+    convo_text = "\n".join(convo)[-8000:]  # 截断保护，保留最近内容
+
+    sys_msg = (
+        "你是对话摘要助手。把以下嘉然与用户的对话压缩成一段简洁中文摘要，"
+        "保留：关键事实、用户偏好/称呼、未结束的话题、重要工具调用及其结果、约定与情绪。"
+        "只输出摘要正文，不要列表、不要标题、不要前后缀。"
+    )
+    if old_summary:
+        user_msg = (
+            f"【上一版摘要】（合并进新版，不要丢失其中关键信息）\n{old_summary}\n\n"
+            f"【本轮新增对话】\n{convo_text}"
+        )
+    else:
+        user_msg = f"【对话内容】\n{convo_text}"
+
+    resp = await _chat_completion(
+        [
+            {"role": "system", "content": sys_msg},
+            {"role": "user", "content": user_msg},
+        ],
+        tools=[],
+        temperature=0.3,
+    )
+    summary = (resp["choices"][0]["message"].get("content") or "").strip()
+    return summary or (old_summary or "")

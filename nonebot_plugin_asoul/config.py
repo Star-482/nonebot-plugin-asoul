@@ -42,14 +42,16 @@ class Config(BaseModel):
     agent_model: str = "gpt-4o-mini"
     # 单次对话工具调用循环最大步数（含工具场景；闲聊通常 1 步）
     agent_max_turns: int = 5
-    # 每用户保留的对话消息条数（进程内 LRU）
-    agent_history_limit: int = 12
+    # 当前上下文消息条数上限，达到后触发摘要压缩（旧消息入 compressed 存档 + 滚动摘要）
+    agent_history_limit: int = 30
+    # 压缩后保留的最近消息条数（其余 ~limit-keep 条压缩为摘要）
+    agent_summary_keep: int = 5
     # 每用户调用冷却（秒），防刷
     agent_user_cd: float = 3.0
     # 人设/功能文档 md，相对 data_path；不存在则用内置占位/跳过
     agent_character_path: str = "agent/character.md"
     agent_plugin_doc_path: str = "agent/plugin_doc.md"
-    # 关键记忆 md，相对 data_path；由 recall_memory 工具按需拉取，不注入 system prompt
+    # 关键记忆 md，相对 data_path；默认注入 system prompt
     agent_memories_path: str = "agent/memories.md"
 
 

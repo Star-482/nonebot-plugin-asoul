@@ -165,7 +165,7 @@ async def _get_quotation(args: dict, ctx: ToolContext) -> ToolResult:
 
 @register_tool(
     "get_activity",
-    "查询本周日程（今天和明天的安排）。",
+    "查询本周直播日程（今天和明天的安排）。",
     {"type": "object", "properties": {}, "required": []},
 )
 async def _get_activity(args: dict, ctx: ToolContext) -> ToolResult:
