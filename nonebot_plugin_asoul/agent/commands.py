@@ -11,7 +11,6 @@ import datetime
 import json
 import random
 import time
-from collections import OrderedDict
 from pathlib import Path
 
 from nonebot.adapters import Event
@@ -24,6 +23,7 @@ from nonebot.rule import to_me
 from ..config import config
 from .prompt import build_system_prompt
 from .client import run_agent
+from .history import get_history_for_request, append_turn, maybe_compress
 from .stats import record_usage
 from .tools import ToolContext
 
@@ -37,47 +37,19 @@ async def _not_bot(event: Event) -> bool:
 # rule=to_me() & _not_bot：只响应私聊/群@，且不响应 bot 发送的消息
 agent_matcher = on_message(priority=config.command_priority + 50, rule=to_me() & _not_bot)
 
-# 每用户对话历史 LRU（进程内，bot 重启清空）
-_HISTORY: OrderedDict[str, list[dict]] = OrderedDict()
-_HISTORY_LOCK = asyncio.Lock()
-_HISTORY_MAX_USERS = 200
-
 # 每用户调用 CD（防刷）
 _cd_last: dict[str, float] = {}
 
-
-def _get_history(user_id: str) -> list[dict]:
-    """取（或新建）用户历史，LRU move_to_end。调用方需持 _HISTORY_LOCK。"""
-    if user_id in _HISTORY:
-        _HISTORY.move_to_end(user_id)
-        return _HISTORY[user_id]
-    hist: list[dict] = []
-    _HISTORY[user_id] = hist
-    while len(_HISTORY) > _HISTORY_MAX_USERS:
-        _HISTORY.popitem(last=False)
-    return hist
+# 每用户整轮对话锁：串行化 run_agent 全过程（读历史->生成->发送->写回），
+# 避免同一用户上一轮未完成时下一轮重叠导致上下文陈旧 / 时序错乱。
+# check-then-create 之间无 await，asyncio 单线程下原子，无需额外 guard。
+_user_locks: dict[str, asyncio.Lock] = {}
 
 
-async def _append_history(user_id: str, new_msgs: list[dict]) -> None:
-    """把本轮新增消息（user + assistant/tool 序列）追加到历史，并安全裁剪。
-
-    裁剪只在 user 消息边界进行，避免拆散 assistant(tool_calls) 与其 tool 结果，
-    否则下一轮请求会因 tool_calls 缺少对应 tool 结果而报错。
-    """
-    async with _HISTORY_LOCK:
-        hist = _get_history(user_id)
-        hist.extend(new_msgs)
-        limit = config.agent_history_limit
-        while len(hist) > limit:
-            # 找下一个 user 边界（跳过最旧一轮的开头 user），整轮删除
-            next_user = None
-            for i in range(1, len(hist)):
-                if hist[i].get("role") == "user":
-                    next_user = i
-                    break
-            if next_user is None:
-                break  # 只剩一轮，不再裁剪
-            del hist[:next_user]
+def _get_user_lock(user_id: str) -> asyncio.Lock:
+    if user_id not in _user_locks:
+        _user_locks[user_id] = asyncio.Lock()
+    return _user_locks[user_id]
 
 
 def _sample_reply_count() -> int:
@@ -135,40 +107,46 @@ async def _(event: Event, matcher: Matcher):
     group_id = getattr(event, "group_openid", None)
     ctx = ToolContext(user_id=user_id, group_id=str(group_id) if group_id else None)
 
-    # 组装 messages：system + 历史 + 当前 user + 本次条数指令
-    system_prompt = build_system_prompt()
-    async with _HISTORY_LOCK:
-        history_copy = list(_get_history(user_id))
-    n = _sample_reply_count()
-    messages = (
-        [{"role": "system", "content": system_prompt}]
-        + history_copy
-        + [
-            {"role": "user", "content": text},
-            {"role": "system", "content": f"【本次输出要求】本次 replies 数组必须恰好包含 {n} 条消息，长度严格等于 {n}，一条不多一条不少。"},
-        ]
-    )
+    # 每用户整轮锁：串行化 读历史->run_agent->发送->写回，避免重叠导致上下文陈旧与时序错乱
+    async with _get_user_lock(user_id):
+        # 组装 messages：system + [历史摘要?] + 历史 + 当前 user + 本次条数指令
+        system_prompt = build_system_prompt()
+        history_copy = await get_history_for_request(user_id)
+        n = _sample_reply_count()
+        count_instruction = {"role": "system", "content": f"【本次输出要求】本次 replies 数组必须恰好包含 {n} 条消息，长度严格等于 {n}，一条不多一条不少。"}
+        messages = (
+            [{"role": "system", "content": system_prompt}]
+            + history_copy
+            + [
+                {"role": "user", "content": text},
+                count_instruction,
+            ]
+        )
 
-    try:
-        replies, attachments, turn_msgs, usage = await run_agent(messages, ctx)
-    except Exception:
-        logger.exception("agent run_agent 失败")
-        await matcher.send(MessageSegment.text("然然现在有点晕，稍后再试~"))
-        return
+        try:
+            replies, attachments, turn_msgs, usage = await run_agent(messages, ctx)
+        except Exception:
+            logger.exception("agent run_agent 失败")
+            await matcher.send(MessageSegment.text("然然现在有点晕，稍后再试~"))
+            return  # 锁自动释放；跳过压缩/统计/存档
 
-    # 容错：LLM 可能不严格输出 n 条，取前 n 条（不足则全发）
-    replies = replies[:n] if replies else []
-    if not replies:
-        replies = ["……"]
+        # 容错：LLM 可能不严格输出 n 条，取前 n 条（不足则全发）
+        replies = replies[:n] if replies else []
+        if not replies:
+            replies = ["……"]
 
-    # 逐条发送文本，附件单独各发一条（避免 text+markdown 混合时文本段被吞）
-    for line in replies:
-        await matcher.send(MessageSegment.text(line))
-    for att in attachments:
-        await matcher.send(att)
+        # 逐条发送文本，附件单独各发一条（避免 text+markdown 混合时文本段被吞）
+        for line in replies:
+            await matcher.send(MessageSegment.text(line))
+        for att in attachments:
+            await matcher.send(att)
 
-    # 存历史：user 消息 + 本轮新增（含工具调用过程），工具结果可跨轮记忆
-    await _append_history(user_id, [{"role": "user", "content": text}] + turn_msgs)
+        # 存历史：user + 条数指令 + 本轮新增（含工具调用过程），工具结果可跨轮记忆
+        # 条数指令也存入历史，保证下一轮请求前缀与本轮一致，提高 prompt cache 命中率
+        await append_turn(user_id, [{"role": "user", "content": text}, count_instruction] + turn_msgs)
+    # 锁释放：压缩/统计/存档放锁外，不阻塞下一轮（压缩自带前端不变校验，并发安全）
+    # 达阈值则压缩：旧消息入 compressed 存档 + 滚动摘要，留尾部 keep 条
+    await maybe_compress(user_id)
     # 统计 token 用量 + 对话存档（仅存档，不读回）
     record_usage(calls=1, **usage)
     _archive_dialogue(user_id, group_id, text, replies, turn_msgs)
