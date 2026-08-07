@@ -37,6 +37,7 @@ from . import live_subscription as _live_subscription
 from . import manage as _manage
 from . import agent as _agent
 from . import announcement as _announcement
+from . import message_review as _message_review
 from .fortune_manager import fortune_manager, build_fortune_md
 from .activity import save_img_activity, save_json_activity, get_relative_content
 from .markdown import get_about_xiaoran_markdown, get_test_markdown

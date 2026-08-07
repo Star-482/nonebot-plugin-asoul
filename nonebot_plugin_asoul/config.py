@@ -54,5 +54,19 @@ class Config(BaseModel):
     # 关键记忆 md，相对 data_path；默认注入 system prompt
     agent_memories_path: str = "agent/memories.md"
 
+    # ── 消息审核（捕获所有入/出站消息，SQLite 存储 + REST/WS 推送给外部仿 QQ 客户端）──
+    # 总开关：默认关，开发审核工具，按需在 .env 开启
+    review_enabled: bool = False
+    # SQLite 路径，相对 data_path
+    review_db_path: str = "review/messages.db"
+    # FastAPI 挂载路径（REST + WS 均在其下）
+    review_mount: str = "/asoul-review"
+    # 鉴权 token；非空则 REST/WS 需带 ?token=（bot 部署在公网时强烈建议设置）
+    review_token: str = ""
+    # 消息保留天数；0 = 永久保留
+    review_retention_days: int = 0
+    # WS 客户端连上时回补的最近消息条数
+    review_ws_recent_on_connect: int = 20
+
 
 config = get_plugin_config(Config)
