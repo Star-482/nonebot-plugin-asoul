@@ -1,3 +1,9 @@
+"""
+@Author: star_482
+@Date: 2025/4/11
+@File: whateat
+@Description:
+"""
 import json
 import os
 import time
@@ -20,8 +26,8 @@ from nonebot.adapters.qq.models import (
 )
 from nonebot.plugin.on import on_command
 
-from .config import config
-from .storage import get_bucket, KEY_PREFIX, manifest
+from ..config import config
+from ..storage import get_bucket, KEY_PREFIX, manifest
 
 NICKNAME = list(get_driver().config.nickname)
 BOT_NAME = NICKNAME[0] if NICKNAME else "然然"

@@ -10,6 +10,8 @@ import random
 from datetime import date
 from pathlib import Path
 
+from nonebot import get_driver
+from nonebot.adapters import Event
 from nonebot.adapters.qq import MessageSegment
 from nonebot.adapters.qq.models import (
     Action,
@@ -20,10 +22,11 @@ from nonebot.adapters.qq.models import (
     Permission,
     RenderData,
 )
+from nonebot.plugin.on import on_command
 
-from .utils import open_json, drawing, pick_fortune_base, drawing_to_bytes
-from .config import config
-from .storage import get_bucket, KEY_PREFIX, manifest, _recipe_hash
+from ..utils import open_json, drawing, pick_fortune_base, drawing_to_bytes
+from ..config import config
+from ..storage import get_bucket, KEY_PREFIX, manifest, _recipe_hash
 
 
 class FortuneManager:
@@ -129,3 +132,29 @@ def build_fortune_md(result: dict, uid: str) -> MessageSegment:
 
 
 fortune_manager = FortuneManager()
+
+
+daily_fortune = on_command("今日运势", aliases={"抽签"}, priority=config.command_priority)
+
+
+@daily_fortune.handle()
+async def _(event: Event):
+    gid = getattr(event, "group_openid", None) or "dm"
+    uid = event.get_user_id()
+    # admin 每次都重新生成，方便调试
+    is_admin = event.get_user_id() in get_driver().config.superusers
+    if is_admin or fortune_manager.check_data(gid, uid):
+        result = await fortune_manager.do_draw(gid, uid)
+        fortune_manager.save_data()
+        await daily_fortune.finish(build_fortune_md(result, uid))
+    else:
+        info = fortune_manager.get_cached_info(gid, uid)
+        if info and info.get("url"):
+            bucket = get_bucket()
+            md_img = bucket.build_md_image(info["url"], info["w"], info["h"])
+            md = f"<@{uid}>\n### 你今天抽过签了，再给你看一次哦🤗\n\n{md_img}"
+            await daily_fortune.finish(MessageSegment.markdown(md))
+        else:
+            img_path = Path(config.data_path) / f"resource/out/{gid}_{uid}.png"
+            message = MessageSegment.file_image(img_path) + MessageSegment.text("你今天抽过签了，再给你看一次哦🤗\n")
+            await daily_fortune.finish(message)

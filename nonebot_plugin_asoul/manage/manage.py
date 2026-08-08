@@ -9,7 +9,7 @@ from nonebot.adapters.qq.event import GroupDelRobotEvent, GroupMsgReceiveEvent, 
 from nonebot.log import logger
 from nonebot.rule import Rule
 
-from .live_subscription.manager import manager
+from ..live_subscription.manager import manager
 
 
 def _is_group_del_robot(event) -> bool:
