@@ -48,7 +48,8 @@ def _on_notify_done(task: asyncio.Task) -> None:
     exc = task.exception()
     if exc is not None:
         logger.warning(
-            f"[live-stop] 通知任务未捕获异常:\n{traceback.format_exc()}"
+            "[live-stop] 通知任务未捕获异常:\n"
+            f"{''.join(traceback.format_exception(exc))}"
         )
 
 
@@ -56,12 +57,31 @@ class Notifier:
     """QQ 群 Markdown 通知。"""
 
     async def _try_send(self, gid: str, message, uid: int, label: str) -> None:
-        """发送一条通知并更新推送验证状态."""
+        """发送一条通知并更新推送验证状态.
+
+        bot 临时不可用（QQ ws 每 30 分钟重连，期间 get_bot() 抛 KeyError）时
+        短暂重试以避免漏发；仍不可用则跳过本群：不标记 push_fail，也不向调用方抛出 —— 避免中断后续群的通知循环.
+        """
         push_state = manager.is_push_ok(gid)
         if push_state is False:
             return  # 已知不可用，跳过
 
-        bot = get_bot()
+        # ws 重连约 3s，最多等待 ~3s 重试以命中重连完成；仍不可用则跳过本群，
+        # 不标记 push_fail，不中断后续群的通知循环
+        bot = None
+        for attempt in range(3):
+            try:
+                bot = get_bot()
+                break
+            except KeyError:
+                if attempt < 2:
+                    await asyncio.sleep(1.5)
+        if bot is None:
+            logger.warning(
+                f"[{label}] bot 未连接（重连超时），跳过 gid={gid} uid={uid}"
+            )
+            return
+
         try:
             await bot.send_to_group(group_openid=gid, message=message)
             if push_state is None:
