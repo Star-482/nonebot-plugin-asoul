@@ -12,10 +12,13 @@ from typing import Awaitable, Callable
 from nonebot.log import logger
 
 from ..utils import open_json
-from ..fortune_manager import fortune_manager, build_fortune_md
-from ..whateat import build_whateat_msg
-from ..random_wife import get_random_wife_md_message
-from ..activity import get_relative_content
+from ..features import (
+    fortune_manager,
+    build_fortune_md,
+    build_whateat_msg,
+    get_random_wife_md_message,
+    get_relative_content,
+)
 from ..markdown import get_about_xiaoran_markdown
 # 复用 diana/commands.py 的 session 缓存与结果 builder（同包，私有函数可 import）
 from ..diana.commands import (

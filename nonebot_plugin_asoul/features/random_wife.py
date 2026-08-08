@@ -19,9 +19,10 @@ from nonebot.adapters.qq.models import (
     Permission,
     RenderData,
 )
+from nonebot.plugin.on import on_command
 
-from .config import config
-from .storage import get_bucket, KEY_PREFIX, manifest
+from ..config import config
+from ..storage import get_bucket, KEY_PREFIX, manifest
 
 
 # 老婆分类元数据缓存：{filename: {"category": str, "submitter": str, "date": str}}
@@ -67,8 +68,8 @@ async def get_random_wife_md_message():
     """返回 QQ Markdown 消息（图片走 COS 公网 URL）+ 内联键盘。
 
     降级路径：
-    - 目录不存在 / 为空 → 文本提示
-    - COS 上传失败 → 回退到本地 Image(path=...) 发送
+    - 目录不存在 / 为空 -> 文本提示
+    - COS 上传失败 -> 回退到本地 Image(path=...) 发送
     """
     wife_path = _wife_path()
     if not wife_path.exists():
@@ -97,7 +98,7 @@ async def get_random_wife_md_message():
     url = await bucket.get_or_upload_file(img, prefix=KEY_PREFIX["wife"])
 
     if url is None:
-        # COS 上传失败 → 降级到本地图片
+        # COS 上传失败 -> 降级到本地图片
         return MessageSegment.file_image(img) + MessageSegment.text(
             f"你今日抽取的老婆是{name}\n分类：{category}{submission_note}"
         )
@@ -142,3 +143,12 @@ async def get_random_wife_md_message():
     )
 
     return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)
+
+
+random_wife_matcher = on_command("抽老婆", priority=config.command_priority)
+
+
+@random_wife_matcher.handle()
+async def _():
+    message = await get_random_wife_md_message()
+    await random_wife_matcher.finish(message)

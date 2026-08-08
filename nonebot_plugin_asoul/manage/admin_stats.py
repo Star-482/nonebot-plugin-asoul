@@ -17,7 +17,7 @@ from nonebot.permission import SUPERUSER
 from nonebot.plugin.on import on_command
 from nonebot.typing import T_State
 
-from .config import config
+from ..config import config
 
 STATS_STATE_KEY = "_asoul_command_stats_record"
 
@@ -229,7 +229,7 @@ async def _():
         command_lines = "  暂无数据"
     # agent 统计（对话次数 + token 消耗）
     try:
-        from .agent.stats import get_summary as _agent_summary
+        from ..agent.stats import get_summary as _agent_summary
         agent_stats = _agent_summary()
         today_agent = agent_stats.get(today, {})
         agent_total_calls = sum(d.get("calls", 0) for d in agent_stats.values())

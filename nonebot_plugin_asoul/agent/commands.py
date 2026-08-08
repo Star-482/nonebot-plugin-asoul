@@ -13,6 +13,7 @@ import random
 import time
 from pathlib import Path
 
+from nonebot import get_driver
 from nonebot.adapters import Event
 from nonebot.adapters.qq import MessageSegment
 from nonebot.internal.matcher import Matcher
@@ -33,9 +34,22 @@ async def _not_bot(event: Event) -> bool:
     return not getattr(author, "bot", False)
 
 
+# 命令前缀（NoneBot command_start，默认 "/"）-- 命令由命令 matcher 处理，不进 agent
+_command_starts: tuple[str, ...] = tuple(get_driver().config.command_start)
+
+
+async def _not_command(event: Event) -> bool:
+    """排除命令消息（以 command_start 开头），命令在 rule 阶段就不匹配 agent matcher。"""
+    text = event.get_message().extract_plain_text().lstrip()
+    return not text.startswith(_command_starts)
+
+
 # 兜底 matcher：priority=command_priority+50，排在所有命令之后
-# rule=to_me() & _not_bot：只响应私聊/群@，且不响应 bot 发送的消息
-agent_matcher = on_message(priority=config.command_priority + 50, rule=to_me() & _not_bot)
+# rule=to_me() & _not_bot & _not_command：只响应私聊/群@、非 bot、非命令的消息
+agent_matcher = on_message(
+    priority=config.command_priority + 50,
+    rule=to_me() & _not_bot & _not_command,
+)
 
 # 每用户调用 CD（防刷）
 _cd_last: dict[str, float] = {}
@@ -94,8 +108,8 @@ async def _(event: Event, matcher: Matcher):
         return  # 未启用，静默（行为同现状）
 
     text = event.get_message().extract_plain_text().strip()
-    if not text or text.startswith("/"):
-        return  # 空消息或未匹配的命令，不喂 LLM
+    if not text:
+        return  # 空消息，不喂 LLM
 
     user_id = event.get_user_id()
     # per-user CD
