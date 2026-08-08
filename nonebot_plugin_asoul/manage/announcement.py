@@ -15,8 +15,8 @@ from nonebot.log import logger
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 
-from .config import config
-from .live_subscription.manager import manager
+from ..config import config
+from ..live_subscription.manager import manager
 
 _ANNOUNCEMENT_FILE = "announcement.md"
 
