@@ -125,3 +125,20 @@ def get_about_xiaoran_markdown():
         )
     )
     return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)
+
+
+def get_blacklist_md(text: str) -> MessageSegment:
+    """构造拉黑提示的 md 消息（含交流群按钮，提示误判可联系开发者）。"""
+    content = f"{text}\n\n> 如果是误判，可点击下方按钮加入交流群联系开发者。"
+    keyboard = MessageKeyboard(
+        content=InlineKeyboard(
+            rows=[
+                InlineKeyboardRow(
+                    buttons=[
+                        _link_button("blacklist_group", "交流群", "https://qm.qq.com/q/bTIMDcbTkA"),
+                    ]
+                )
+            ]
+        )
+    )
+    return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)

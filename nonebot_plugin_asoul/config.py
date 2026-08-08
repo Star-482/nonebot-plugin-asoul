@@ -68,5 +68,11 @@ class Config(BaseModel):
     # WS 客户端连上时回补的最近消息条数
     review_ws_recent_on_connect: int = 20
 
+    # ── 违禁词拦截（入站消息含违禁词计数 + 黑名单，SUPERUSER 管理）──
+    # 总开关：默认开
+    violation_enabled: bool = True
+    # 用户违禁累计达此次数后自动拉黑
+    violation_threshold: int = 3
+
 
 config = get_plugin_config(Config)
