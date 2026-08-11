@@ -41,7 +41,7 @@ class CostumeService:
             })
         return result
 
-    def match_by_name(self, name: str, pet: PetState = None) -> dict | None:
+    def match_by_name(self, name: str, pet: Optional[PetState] = None) -> dict | None:
         """模糊匹配服装名。name 是用户输入，可部分匹配（双向子串）。"""
         all_costumes = self.list_costumes(pet) if pet else [
             {"id": cid, "name": cdata["name"]} for cid, cdata in self.costumes.items()

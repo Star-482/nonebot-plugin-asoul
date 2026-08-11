@@ -12,7 +12,7 @@ import logging
 import random
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable, Awaitable
 
 from jinja2 import TemplateError
 
@@ -152,10 +152,10 @@ class DianaSession:
     - 换装 / talk / status / tick 不经过互动管道
     """
 
-    _post_action_hooks: list[callable] = []
+    _post_action_hooks: list[Callable[..., Awaitable[None]]] = []
 
     @classmethod
-    def on_post_action(cls, hook: callable):
+    def on_post_action(cls, hook: Callable[..., Awaitable[None]]):
         """装饰器：注册后置钩子.
 
         钩子签名: (session: DianaSession, item: Item, result: dict) -> None

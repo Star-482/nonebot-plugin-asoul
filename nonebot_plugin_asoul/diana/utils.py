@@ -5,7 +5,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TypedDict
 
 from .core import PetState
 
@@ -22,7 +22,13 @@ _DEFAULT_ASSETS_DIR = _PACKAGE_DIR / "assets"
 _DEFAULT_SAVES_DIR = None
 
 # ── 运行时配置（由 configure() 修改）──
-_config = {
+class _RuntimeConfig(TypedDict):
+    data_dir: Path
+    assets_dir: Path
+    saves_dir: Optional[Path]
+
+
+_config: _RuntimeConfig = {
     "data_dir": _DEFAULT_DATA_DIR,
     "assets_dir": _DEFAULT_ASSETS_DIR,
     "saves_dir": _DEFAULT_SAVES_DIR,
@@ -106,6 +112,7 @@ def save_pet(pet: PetState, save_dir: Optional[Path] = None) -> Path:
         except OSError:
             pass
         raise
+    return filepath
 
 
 def load_pet(user_id: str, save_dir: Optional[Path] = None) -> Optional[PetState]:

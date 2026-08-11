@@ -14,7 +14,7 @@ from typing import Literal
 
 from nonebot import get_driver
 from nonebot.adapters import Event
-from nonebot.adapters.qq import MessageSegment
+from nonebot.adapters.qq import Message, MessageSegment
 from nonebot.adapters.qq.models import (
     Action,
     Button,
@@ -126,7 +126,7 @@ def _random_pic(menu_type: Literal["drink", "eat"]) -> tuple[Path, str, dict | N
     return pic_path, Path(pic_name).stem, sub_info
 
 
-async def build_whateat_msg(menu_type: Literal["drink", "eat"], action_verb: str) -> MessageSegment:
+async def build_whateat_msg(menu_type: Literal["drink", "eat"], action_verb: str) -> Message:
     """构造吃什么/喝什么的完整 md 消息（含键盘），不绑 matcher。
 
     供命令 handler 和 agent 工具复用，保证两路径返回一致的模板。
