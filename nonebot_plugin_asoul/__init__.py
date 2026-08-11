@@ -8,7 +8,7 @@ from nonebot.plugin import PluginMetadata
 from nonebot.plugin.on import on_command
 
 from .config import config, Config
-from . import start_up as _
+from . import start_up as _start_up
 from . import storage as _storage
 from . import live_subscription as _live_subscription
 from . import features as _features

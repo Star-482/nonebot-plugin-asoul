@@ -147,7 +147,7 @@ def summary() -> dict:
       addressed/fortune/abcdef.png   → bucket "fortune"
     """
     manifest = _ensure_loaded()
-    out = {"static": {}, "addressed": {}}
+    out: dict[str, dict[str, int]] = {"static": {}, "addressed": {}}
     for key in manifest["static"]:
         bucket = key.rsplit("/", 1)[0] if "/" in key else key
         out["static"][bucket] = out["static"].get(bucket, 0) + 1

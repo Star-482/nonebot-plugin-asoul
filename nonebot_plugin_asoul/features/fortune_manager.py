@@ -12,7 +12,7 @@ from pathlib import Path
 
 from nonebot import get_driver
 from nonebot.adapters import Event
-from nonebot.adapters.qq import MessageSegment
+from nonebot.adapters.qq import Message, MessageSegment
 from nonebot.adapters.qq.models import (
     Action,
     Button,
@@ -105,7 +105,7 @@ class FortuneManager:
             json.dump(self.fortune_data, f, ensure_ascii=False, indent=4)
 
 
-def build_fortune_md(result: dict, uid: str) -> MessageSegment:
+def build_fortune_md(result: dict, uid: str) -> Message:
     """构造今日运势的完整 md 消息（含键盘），不绑 matcher。供命令和 agent 工具复用。"""
     if "url" in result:
         bucket = get_bucket()

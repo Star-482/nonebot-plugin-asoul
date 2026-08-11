@@ -7,7 +7,7 @@ ToolResult(text=给 LLM 的文本摘要, attachments=随回复发送的富媒体
 """
 import random
 from dataclasses import dataclass, field
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, Literal
 
 from nonebot.log import logger
 
@@ -117,7 +117,7 @@ async def _get_fortune(args: dict, ctx: ToolContext) -> ToolResult:
     return ToolResult(text=note, attachments=att)
 
 
-async def _what_eat_drink(menu_type: str, action_verb: str) -> ToolResult:
+async def _what_eat_drink(menu_type: Literal['drink', 'eat'], action_verb: str) -> ToolResult:
     """吃什么/喝什么共用逻辑。复用原版 md 模板（含键盘），与命令路径一致。"""
     msg = await build_whateat_msg(menu_type, action_verb)
     return ToolResult(text=f"已为用户挑了今天{action_verb}的，图片已发送。", attachments=[msg])

@@ -82,6 +82,7 @@ class MessageStore:
                 ),
             )
             self._conn.commit()
+            assert cur.lastrowid is not None  # INSERT 一定产生自增 id
             return cur.lastrowid
 
     def _row(self, row: sqlite3.Row) -> dict:

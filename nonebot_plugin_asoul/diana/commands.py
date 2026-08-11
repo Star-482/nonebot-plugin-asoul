@@ -74,7 +74,7 @@ async def get_session(user_id: str) -> DianaSession:
 
 # ── MD 消息构造 ──
 
-def _md_image(url: str, width: int, height: int, alt: str = "") -> str:
+def _md_image(url: str | None, width: int, height: int, alt: str = "") -> str:
     """QQ Markdown 图片字面量."""
     if not url or width <= 0 or height <= 0:
         return ""
