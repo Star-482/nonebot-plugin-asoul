@@ -3,7 +3,7 @@
 @Date: 2026/8/1
 @File: announcement
 @Description: 更新公告推送 -- SUPERUSER 用 /设置公告 存 markdown，/推送更新 主动推送到
-所有开了主动推送的群（复用 live_subscription 的 push_ok 群列表与主动消息发送机制）。
+所有开了主动推送的群（复用 manage.relationships 的 push_ok 群列表）。
 """
 import asyncio
 from pathlib import Path
@@ -16,7 +16,7 @@ from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 
 from ..config import config
-from ..live_subscription.manager import manager
+from .relationships import relations
 
 _ANNOUNCEMENT_FILE = "announcement.md"
 
@@ -62,7 +62,7 @@ async def _(matcher: Matcher):
     md = path.read_text(encoding="utf-8").strip()
     if not md:
         await push_update.finish("公告内容为空。")
-    groups = manager.get_push_ok_groups()
+    groups = relations.get_push_ok_groups()
     if not groups:
         await push_update.finish("没有已验证可主动推送的群。需群主在群内开启“允许机器人主动发言”后再试。")
 
@@ -75,7 +75,7 @@ async def _(matcher: Matcher):
             success += 1
         except Exception as e:
             logger.warning(f"[公告] 推送失败 gid={gid}: {e}")
-            manager.mark_push_fail(gid)  # 失效则移出 push_ok，下次不再推
+            relations.mark_group_push_fail(gid)  # 失效则移出 push_ok，下次不再推
             fail += 1
         await asyncio.sleep(1)  # 防限流
     await matcher.send(

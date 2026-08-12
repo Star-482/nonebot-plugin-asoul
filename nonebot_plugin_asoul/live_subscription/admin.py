@@ -21,6 +21,7 @@ from nonebot.permission import SUPERUSER
 
 from ..config import config
 from .manager import manager
+from ..manage.relationships import relations
 
 subscribe_matcher = on_command(
     "订阅开播", aliases={"开播通知"}, priority=config.command_priority
@@ -131,7 +132,7 @@ async def _(event: Event, arg: Message = CommandArg()):
         results.append(f"✓ 已订阅 {upstream['name']}")
 
     # 订阅成功后检查推送状态
-    if manager.is_push_ok(gid) is not True:
+    if relations.is_group_push_ok(gid) is not True:
         results.append(
             "\n⚠️ 本群尚未开启主动推送，"
             "请群主点击 bot 头像 → 右上角设置 → 允许机器人主动发言，"
