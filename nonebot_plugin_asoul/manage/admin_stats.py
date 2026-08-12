@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Optional
 
 from nonebot.adapters import Event
+from nonebot.adapters.qq.event import MessageEvent
 from nonebot.consts import CMD_ARG_KEY, CMD_KEY, PREFIX_KEY, RAW_CMD_KEY
 from nonebot.matcher import Matcher
 from nonebot.message import run_postprocessor, run_preprocessor
@@ -144,11 +145,13 @@ def _is_asoul_module(module_name: str) -> bool:
 
 
 def _build_record(event: Event, matcher: Matcher, state: T_State) -> Optional[dict]:
+    if not isinstance(event, MessageEvent):
+        return None  # 非消息事件（notice/meta）不计入命令统计
     module_name = matcher.module_name or ""
     if not _is_asoul_module(module_name):
         return None
-    # agent 兜底 matcher 不是命令，不计入命令统计
-    if module_name.endswith(".agent.commands"):
+    # agent 兜底 matcher 与 relationships 关系兜底 matcher 不是命令，不计入命令统计
+    if module_name.endswith(".agent.commands") or module_name.endswith(".manage.relationships"):
         return None
 
     prefix = state.get(PREFIX_KEY) or {}

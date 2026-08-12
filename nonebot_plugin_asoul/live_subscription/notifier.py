@@ -24,6 +24,7 @@ from nonebot.log import logger
 
 from .api import LiveInfo
 from .manager import manager
+from ..manage.relationships import relations
 from .session import poll_session_id, screenshot_session_page
 from ..storage import get_bucket, KEY_PREFIX
 
@@ -70,7 +71,7 @@ class Notifier:
         bot 临时不可用（QQ ws 每 30 分钟重连，期间 get_bot() 抛 KeyError）时
         短暂重试以避免漏发；仍不可用则跳过本群：不标记 push_fail，也不向调用方抛出 —— 避免中断后续群的通知循环.
         """
-        push_state = manager.is_push_ok(gid)
+        push_state = relations.is_group_push_ok(gid)
         if push_state is False:
             return  # 已知不可用，跳过
 
@@ -97,7 +98,7 @@ class Notifier:
             try:
                 await bot.send_to_group(group_openid=gid, message=message)
                 if push_state is None:
-                    manager.mark_push_ok(gid)
+                    relations.mark_group_push_ok(gid)
                     logger.info(f"[{label}] 首次发送成功，标记推送可用 gid={gid}")
                 if attempt > 0:
                     logger.info(f"[{label}] gid={gid} 频控重试第 {attempt} 次成功")
@@ -127,7 +128,7 @@ class Notifier:
                         f"[{label}] 群不可用 gid={gid} uid={uid} code={e.code}: {e}"
                     )
                     if push_state in (True, None):
-                        manager.mark_push_fail(gid)
+                        relations.mark_group_push_fail(gid)
                         logger.info(f"[{label}] 标记推送不可用 gid={gid}")
                     return
                 # 其他未知失败：不标记 push_fail，跳过本轮（保守，下轮直播再试）

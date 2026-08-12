@@ -8,6 +8,8 @@ from nonebot.plugin import PluginMetadata
 from nonebot.plugin.on import on_command
 
 from .config import config, Config
+from . import database as _database
+_database.init_db()  # 建库建表，先于一切业务子包（数据迁移请手动跑 scripts/migrate_db.py）
 from . import start_up as _start_up
 from . import storage as _storage
 from . import live_subscription as _live_subscription

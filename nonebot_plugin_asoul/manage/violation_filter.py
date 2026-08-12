@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 
 from nonebot.adapters import Event
+from nonebot.adapters.qq.event import MessageEvent
 from nonebot.exception import IgnoredException
 from nonebot.log import logger
 from nonebot.matcher import Matcher
@@ -104,6 +105,8 @@ async def violation_preprocessor(event: Event, matcher: Matcher, state: T_State)
     module_name = matcher.module_name or ""
     if not _is_asoul_module(module_name):
         return
+    if not isinstance(event, MessageEvent):
+        return  # 非消息事件（notice/meta）不检查违禁词
     user_id = event.get_user_id()
     # 黑名单：只禁 agent 聊天，其他功能正常使用
     if user_id in _blacklist:

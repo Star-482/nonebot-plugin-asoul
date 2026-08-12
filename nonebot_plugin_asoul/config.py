@@ -10,6 +10,8 @@ from pydantic import BaseModel
 
 class Config(BaseModel):
     data_path: str = "./data/asoul"
+    # 公共 SQLite 数据库路径，相对 data_path。供 database 子包与所有模块共享（单库多表）。
+    db_path: str = "asoul.db"
     wife_img_dir: str = "wife_img"
     # diana 的 data（YAML + 模板）与 assets（服装立绘）已挪到 nonebot_plugin_asoul/diana/ 包内，
     # 不再可配置；只留 saves 走 data_path，saves 是用户运行时数据。
@@ -57,8 +59,6 @@ class Config(BaseModel):
     # ── 消息审核（捕获所有入/出站消息，SQLite 存储 + REST/WS 推送给外部仿 QQ 客户端）──
     # 总开关：默认关，开发审核工具，按需在 .env 开启
     review_enabled: bool = False
-    # SQLite 路径，相对 data_path
-    review_db_path: str = "review/messages.db"
     # FastAPI 挂载路径（REST + WS 均在其下）
     review_mount: str = "/asoul-review"
     # 鉴权 token；非空则 REST/WS 需带 ?token=（bot 部署在公网时强烈建议设置）
