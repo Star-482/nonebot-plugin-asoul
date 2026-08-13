@@ -7,7 +7,7 @@
 import asyncio
 
 from nonebot.adapters import Event
-from nonebot.adapters.qq import Message, MessageSegment
+from nonebot.adapters.qq import Bot, Message, MessageSegment
 from nonebot.adapters.qq.event import GroupMessageCreateEvent
 from nonebot.adapters.qq.models import (
     Action,
@@ -25,6 +25,7 @@ from nonebot.permission import SUPERUSER
 from ..config import config
 from .manager import manager
 from ..manage.relationships import relations
+from ..manage.qq_api import get_group_bot_state
 
 subscribe_matcher = on_command(
     "订阅开播", aliases={"开播通知"}, priority=config.command_priority
@@ -122,7 +123,7 @@ def _build_push_warning_md(results: str = "") -> MessageSegment:
 # ── 订阅开播 ──
 
 @subscribe_matcher.handle()
-async def _(event: Event, arg: Message = CommandArg()):
+async def _(event: Event, bot: Bot, arg: Message = CommandArg()):
     if not isinstance(event, GroupMessageCreateEvent):
         await subscribe_matcher.finish("开播订阅仅在群内可用~")
         return
@@ -165,9 +166,11 @@ async def _(event: Event, arg: Message = CommandArg()):
 
     # 有新订阅但未开推送：提醒群主开启，轮询等待 3 分钟
     await subscribe_matcher.send(_build_push_warning_md("\n".join(results)))
-    for _ in range(6):  # 每 30s 检查一次，共 3 分钟
-        await asyncio.sleep(30)
-        if relations.is_group_push_ok(gid) is True:
+    for _ in range(36):  # 每 5s 拉一次 bot_state，共 3 分钟（接口 qpm 30，5s=12/min 够）
+        await asyncio.sleep(5)
+        state = await get_group_bot_state(bot, gid)
+        if state and state.get("allow_proactive_msg") is True:
+            relations.mark_group_push_ok(gid)
             await subscribe_matcher.finish("✅ 已检测到主动推送开启，订阅生效~")
     # 超时：取消本次订阅
     for uid, _name in subscribed:

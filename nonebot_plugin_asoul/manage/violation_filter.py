@@ -94,16 +94,13 @@ def _append_record(user_id: str, word: str, text: str, count: int, blacklisted: 
 _load_stats()
 
 
-def _is_asoul_module(module_name: str) -> bool:
-    return "nonebot_plugin_asoul" in module_name.split(".")
-
-
 @run_preprocessor
 async def violation_preprocessor(event: Event, matcher: Matcher, state: T_State):
     if not config.violation_enabled:
         return
     module_name = matcher.module_name or ""
-    if not _is_asoul_module(module_name):
+    # 只对 agent 响应器做违禁词检查；relationships 等关系兜底 matcher 不检查
+    if not module_name.startswith("nonebot_plugin_asoul.agent"):
         return
     if not isinstance(event, MessageEvent):
         return  # 非消息事件（notice/meta）不检查违禁词
