@@ -3,14 +3,15 @@
 @Date: 2026/8/11
 @File: relationships
 @Description: 用户/群关系与推送权限管理。封装 database.repositories.relationships，
-挂钩全套 QQ 关系事件（FriendAdd/Del、C2CMsgReceive/Reject、GroupAddRobot/DelRobot、
-GroupMsgReceive/Reject）自动落库。供 live_subscription/announcement 等主动推送模块查询。
+挂钩 QQ 关系事件（FriendAdd/Del、C2CMsgReceive/Reject、GroupAddRobot/DelRobot）自动落库。
+供 live_subscription/announcement 等主动推送模块查询。
 退群时的订阅数据清理不在此处——由 live_subscription 自己监听 GroupDelRobotEvent 处理，
 避免 manage 反向依赖 live_subscription。
 """
 from typing import Optional
 
 from nonebot import on_message, on_notice
+from nonebot.adapters.qq import Bot
 from nonebot.adapters.qq.event import (
     C2CMessageCreateEvent,
     C2CMsgReceiveEvent,
@@ -20,13 +21,14 @@ from nonebot.adapters.qq.event import (
     GroupAddRobotEvent,
     GroupAtMessageCreateEvent,
     GroupDelRobotEvent,
-    GroupMsgReceiveEvent,
-    GroupMsgRejectEvent,
 )
 from nonebot.log import logger
 from nonebot.rule import Rule
 
+from ..config import config
 from ..database.repositories import FriendsRepo, GroupsRepo
+from ..markdown import get_welcome_markdown
+from .qq_api import get_group_info
 
 
 class RelationshipService:
@@ -124,28 +126,24 @@ def _is_group_del_robot(event) -> bool:
     return isinstance(event, GroupDelRobotEvent)
 
 
-def _is_group_msg_receive(event) -> bool:
-    return isinstance(event, GroupMsgReceiveEvent)
-
-
-def _is_group_msg_reject(event) -> bool:
-    return isinstance(event, GroupMsgRejectEvent)
-
-
 _friend_add = on_notice(rule=Rule(_is_friend_add), priority=100)
 _friend_del = on_notice(rule=Rule(_is_friend_del), priority=100)
 _c2c_receive = on_notice(rule=Rule(_is_c2c_receive), priority=100)
 _c2c_reject = on_notice(rule=Rule(_is_c2c_reject), priority=100)
 _group_add_robot = on_notice(rule=Rule(_is_group_add_robot), priority=100)
 _group_del_robot = on_notice(rule=Rule(_is_group_del_robot), priority=100)
-_group_msg_receive = on_notice(rule=Rule(_is_group_msg_receive), priority=100)
-_group_msg_reject = on_notice(rule=Rule(_is_group_msg_reject), priority=100)
 
 
 @_friend_add.handle()
 async def _on_friend_add(event: FriendAddEvent):
     relations.mark_friend_added(event.openid)
     logger.info(f"好友添加: {event.openid}")
+    if config.welcome_enabled:
+        try:
+            await _friend_add.send(get_welcome_markdown("friend"))
+            logger.info(f"[welcome] 已向新好友发送指令中心: {event.openid}")
+        except Exception as e:
+            logger.warning(f"[welcome] 好友欢迎消息发送失败 openid={event.openid}: {e!r}")
 
 
 @_friend_del.handle()
@@ -167,9 +165,23 @@ async def _on_c2c_reject(event: C2CMsgRejectEvent):
 
 
 @_group_add_robot.handle()
-async def _on_group_add_robot(event: GroupAddRobotEvent):
+async def _on_group_add_robot(event: GroupAddRobotEvent, bot: Bot):
     relations.mark_group_added(event.group_openid, event.op_member_openid)
     logger.info(f"bot 被加入群: {event.group_openid} (op={event.op_member_openid})")
+    # 拉取群信息（白名单接口，失败不阻塞落库与欢迎消息）
+    # 不拉 bot_state：刚进群群主尚未开主动推送，allow_proactive_msg 无意义；
+    # push_state 由订阅轮询（admin.py 调 qq_api.get_group_bot_state）或首次主动推送自愈
+    info = await get_group_info(bot, event.group_openid)
+    if info:
+        relations.groups.update_info(
+            event.group_openid, info["name"], info["intro"], info["member_count"]
+        )
+    if config.welcome_enabled:
+        try:
+            await _group_add_robot.send(get_welcome_markdown("group"))
+            logger.info(f"[welcome] 已向新群发送指令中心: {event.group_openid}")
+        except Exception as e:
+            logger.warning(f"[welcome] 群欢迎消息发送失败 gid={event.group_openid}: {e!r}")
 
 
 @_group_del_robot.handle()
@@ -178,18 +190,6 @@ async def _on_group_del_robot(event: GroupDelRobotEvent):
     relations.mark_group_removed(gid)
     relations.unmark_group_push(gid)
     logger.info(f"bot 被移出群: {gid}")
-
-
-@_group_msg_receive.handle()
-async def _on_group_msg_receive(event: GroupMsgReceiveEvent):
-    relations.mark_group_push_ok(event.group_openid)
-    logger.info(f"群推送开通: {event.group_openid}")
-
-
-@_group_msg_reject.handle()
-async def _on_group_msg_reject(event: GroupMsgRejectEvent):
-    relations.mark_group_push_fail(event.group_openid)
-    logger.info(f"群推送关闭: {event.group_openid}")
 
 
 # ── 消息事件兜底：错过 FriendAdd/GroupAddRobot 时，发消息即补录关系 ──

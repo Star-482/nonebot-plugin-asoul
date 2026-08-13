@@ -4,8 +4,11 @@
 @File: admin
 @Description: 开播订阅管理命令：订阅开播 / 取消订阅 / 订阅列表 / 订阅全览（SUPERUSER）。
 """
+import asyncio
+
 from nonebot.adapters import Event
-from nonebot.adapters.qq import Message, MessageSegment
+from nonebot.adapters.qq import Bot, Message, MessageSegment
+from nonebot.adapters.qq.event import GroupMessageCreateEvent
 from nonebot.adapters.qq.models import (
     Action,
     Button,
@@ -22,6 +25,7 @@ from nonebot.permission import SUPERUSER
 from ..config import config
 from .manager import manager
 from ..manage.relationships import relations
+from ..manage.qq_api import get_group_bot_state
 
 subscribe_matcher = on_command(
     "订阅开播", aliases={"开播通知"}, priority=config.command_priority
@@ -104,13 +108,29 @@ def _parse_keywords(text: str) -> list[str]:
     return parts
 
 
+def _build_push_warning_md(results: str = "") -> MessageSegment:
+    """未开启主动推送时的提醒：订阅结果 + md 文本 + 使用说明链接。"""
+    content = (f"{results}\n\n" if results else "") + (
+        "## ⚠️ 还差一步\n\n"
+        "本群尚未开启主动推送，暂时收不到开播通知。\n\n"
+        "请群主点击 bot 头像 → 右上角设置 → 允许机器人主动发言\n\n"
+        "开启后我会自动检测，3 分钟内订阅生效~\n\n"
+        "[📖 查看操作说明](https://docs.qq.com/doc/DRkFEbEhoa1Jzc05r)"
+    )
+    return MessageSegment.markdown(content)
+
+
 # ── 订阅开播 ──
 
 @subscribe_matcher.handle()
-async def _(event: Event, arg: Message = CommandArg()):
-    gid = getattr(event, "group_openid", None)
-    if not gid:
+async def _(event: Event, bot: Bot, arg: Message = CommandArg()):
+    if not isinstance(event, GroupMessageCreateEvent):
         await subscribe_matcher.finish("开播订阅仅在群内可用~")
+        return
+    if event.author.member_role != "owner":
+        await subscribe_matcher.finish("只有群主可以使用该指令~")
+        return
+    gid = event.group_openid
     keywords = _parse_keywords(arg.extract_plain_text())
 
     if not keywords:
@@ -120,6 +140,7 @@ async def _(event: Event, arg: Message = CommandArg()):
         )
 
     results: list[str] = []
+    subscribed: list[tuple[int, str]] = []  # 本次新订阅的 (uid, name)，超时取消用
     for kw in keywords:
         upstream = manager.search_upstream(kw)
         if upstream is None:
@@ -130,25 +151,45 @@ async def _(event: Event, arg: Message = CommandArg()):
             continue
         await manager.subscribe(gid, upstream["uid"])
         results.append(f"✓ 已订阅 {upstream['name']}")
+        subscribed.append((upstream["uid"], upstream["name"]))
 
-    # 订阅成功后检查推送状态
-    if relations.is_group_push_ok(gid) is not True:
-        results.append(
-            "\n⚠️ 本群尚未开启主动推送，"
-            "请群主点击 bot 头像 → 右上角设置 → 允许机器人主动发言，"
-            "否则无法收到开播通知"
+    # 已开启主动推送：直接就绪
+    if relations.is_group_push_ok(gid) is True:
+        await subscribe_matcher.finish("\n".join(results) + "\n✅ 开播通知已就绪~")
+
+    # 无新订阅且未开推送：提示但不等待
+    if not subscribed:
+        await subscribe_matcher.finish(
+            "\n".join(results)
+            + "\n⚠️ 本群尚未开启主动推送，已有订阅暂无法收到通知"
         )
 
-    await subscribe_matcher.finish("\n".join(results))
-
+    # 有新订阅但未开推送：提醒群主开启，轮询等待 3 分钟
+    await subscribe_matcher.send(_build_push_warning_md("\n".join(results)))
+    for _ in range(36):  # 每 5s 拉一次 bot_state，共 3 分钟（接口 qpm 30，5s=12/min 够）
+        await asyncio.sleep(5)
+        state = await get_group_bot_state(bot, gid)
+        if state and state.get("allow_proactive_msg") is True:
+            relations.mark_group_push_ok(gid)
+            await subscribe_matcher.finish("✅ 已检测到主动推送开启，订阅生效~")
+    # 超时：取消本次订阅
+    for uid, _name in subscribed:
+        await manager.unsubscribe(gid, uid)
+    await subscribe_matcher.finish(
+        "⏰ 3 分钟内未开启主动推送，本次订阅已取消，请群主开启后重新订阅~"
+    )
 
 # ── 取消订阅 ──
 
 @unsubscribe_matcher.handle()
 async def _(event: Event, arg: Message = CommandArg()):
-    gid = getattr(event, "group_openid", None)
-    if not gid:
+    if not isinstance(event, GroupMessageCreateEvent):
         await unsubscribe_matcher.finish("开播订阅仅在群内可用~")
+        return
+    if event.author.member_role != "owner":
+        await unsubscribe_matcher.finish("只有群主可以使用该指令~")
+        return
+    gid = event.group_openid
     keywords = _parse_keywords(arg.extract_plain_text())
 
     if not keywords:

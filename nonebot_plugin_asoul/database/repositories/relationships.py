@@ -94,6 +94,18 @@ class GroupsRepo:
             ).fetchall()
         return [r["group_openid"] for r in rows]
 
+    def get_member_counts(self, gids: list[str]) -> dict[str, Optional[int]]:
+        """批量查群人数。返回 {group_openid: member_count or None}，未记录的 gid 不在结果中。"""
+        if not gids:
+            return {}
+        placeholders = ",".join("?" * len(gids))
+        with _db_lock:
+            rows = get_db().execute(
+                f"SELECT group_openid, member_count FROM groups WHERE group_openid IN ({placeholders})",
+                gids,
+            ).fetchall()
+        return {r["group_openid"]: r["member_count"] for r in rows}
+
     def get(self, gid: str) -> Optional[dict]:
         with _db_lock:
             row = get_db().execute(
