@@ -68,4 +68,27 @@ CREATE TABLE IF NOT EXISTS upstreams (
     uid INTEGER PRIMARY KEY,
     name TEXT NOT NULL
 );
+
+-- 每群入群欢迎配置（当前生效）
+CREATE TABLE IF NOT EXISTS group_welcome (
+    group_openid TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 0,   -- 0=关 1=开
+    text TEXT,                             -- 已审核通过的欢迎语
+    updated_at TEXT NOT NULL,
+    updated_by TEXT                        -- 最后操作者 openid（群管或审核 SUPERUSER）
+);
+
+-- 自定义欢迎语审核流水
+CREATE TABLE IF NOT EXISTS welcome_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_openid TEXT NOT NULL,
+    submitter_openid TEXT NOT NULL,
+    submitter_role TEXT,                   -- admin/owner
+    pending_text TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',-- pending/approved/rejected
+    submitted_at TEXT NOT NULL,
+    reviewed_at TEXT,
+    reviewer_openid TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_welcome_reviews_status ON welcome_reviews(status);
 """

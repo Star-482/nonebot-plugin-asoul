@@ -171,3 +171,54 @@ def get_blacklist_md(text: str) -> Message:
         )
     )
     return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)
+
+
+def get_welcome_review_md(review: dict) -> Message:
+    """构造自定义欢迎语审核消息：展示待审核内容 + 同意/拒绝按钮（注入审核命令）。
+
+    review: {id, group_openid, submitter_openid, submitter_role, pending_text}
+    按钮 data 为 `/审核欢迎语 同意|拒绝 <id>`，点击触发 SUPERUSER 审核命令。
+    """
+    rid = review["id"]
+    role = {"admin": "管理员", "owner": "群主"}.get(review.get("submitter_role") or "", "群管")
+    content = (
+        "# 📢 入群欢迎语审核\n\n"
+        f"**群**：`{review['group_openid']}`\n\n"
+        f"**提交者**：{role} `{review['submitter_openid']}`\n\n"
+        "## 待审核欢迎语\n\n"
+        f"> {review['pending_text']}\n\n"
+        "请选择是否通过："
+    )
+    keyboard = MessageKeyboard(
+        content=InlineKeyboard(
+            rows=[
+                InlineKeyboardRow(
+                    buttons=[
+                        _command_button(
+                            f"welcome_approve_{rid}", "同意",
+                            f"/审核欢迎语 同意 {rid}",
+                        ),
+                        _command_button(
+                            f"welcome_reject_{rid}", "拒绝",
+                            f"/审核欢迎语 拒绝 {rid}",
+                        ),
+                    ]
+                )
+            ]
+        )
+    )
+    return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)
+
+
+def get_member_welcome_md(text: str, member_openid: str) -> MessageSegment:
+    """新成员入群欢迎消息（markdown）。
+
+    text 为本群当前欢迎语（自定义或默认）；member_openid 为新成员 openid，用于 @。
+    正文内嵌两条指令文字链（关闭入群欢迎 / 设置欢迎语），非按钮、不占按钮额度。
+    """
+    content = (
+        f"🎉 欢迎新成员<@{member_openid}>\n\n{text}\n\n"
+        f"> 群管操作：{_text_chain('/关闭欢迎语', '关闭入群欢迎')} · "
+        f"{_text_chain('/设置欢迎语 ', '设置欢迎语')}"
+    )
+    return MessageSegment.markdown(content)
