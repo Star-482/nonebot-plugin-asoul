@@ -91,9 +91,9 @@ def get_test_markdown():
     return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)
 
 
-def get_about_xiaoran_markdown():
-    """指令中心：用 markdown 文字链列出全部指令（点击插入输入框），按钮额度留给外链。"""
-    content = (
+def _xiaoran_command_center_content() -> str:
+    """指令中心正文：嘉然立绘 + 标题 + 全部指令文字链。供 about_xiaoran / welcome 复用。"""
+    return (
         "![嘉然 Diana #1053px #432px](https://img.cdn1.vip/i/6a04661d8253e_1778673181.png)\n\n"
         "# 📋 小然指令中心\n"
         "嘉然 Diana 的 QQ 群小助手，点一下就能玩～\n\n"
@@ -109,9 +109,15 @@ def get_about_xiaoran_markdown():
         f"{_text_chain('/互动 摸摸头', '互动')}\n\n"
         "## 📺 日程订阅\n"
         f"{_text_chain('/订阅开播', '订阅开播')} · {_text_chain('/本周日程', '本周日程')}\n\n"
+        "## 🎨 二创和数据站\n"
+        "[A手像素画板](https://pixel-asoul.club/) · [直播数据站](https://live.pixel-asoul.club/)\n\n"
         "更多说明见下方链接～\n"
     )
-    keyboard = MessageKeyboard(
+
+
+def _external_link_keyboard() -> MessageKeyboard:
+    """指令中心底部外链键盘：使用说明 / 投稿 / 交流群。"""
+    return MessageKeyboard(
         content=InlineKeyboard(
             rows=[
                 InlineKeyboardRow(
@@ -124,7 +130,30 @@ def get_about_xiaoran_markdown():
             ]
         )
     )
-    return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)
+
+
+def get_about_xiaoran_markdown() -> Message:
+    """指令中心：用 markdown 文字链列出全部指令（点击插入输入框），按钮额度留给外链。"""
+    return (
+        MessageSegment.markdown(_xiaoran_command_center_content())
+        + MessageSegment.keyboard(_external_link_keyboard())
+    )
+
+
+def get_welcome_markdown(scene: str) -> Message:
+    """加好友/加群欢迎消息：简短欢迎语 + 指令中心正文 + 外链键盘。
+
+    scene: "friend" 或 "group"，决定欢迎语措辞。走被动回复（matcher.send 自动带 event_id）。
+    """
+    if scene == "friend":
+        greeting = "嘉然 Diana 收到你啦～以下是能玩的指令 👇\n\n"
+    else:
+        greeting = "嘉然 Diana 进群啦～以下是能玩的指令 👇\n\n"
+    content = greeting + _xiaoran_command_center_content()
+    return (
+        MessageSegment.markdown(content)
+        + MessageSegment.keyboard(_external_link_keyboard())
+    )
 
 
 def get_blacklist_md(text: str) -> Message:

@@ -167,9 +167,19 @@ class Notifier:
         )
         message = MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard)
 
-        await asyncio.gather(
-            *(self._try_send(gid, message, info.uid, "live-start") for gid in groups)
-        )
+        # 按群人数降序（大群优先），人数未知排最后
+        counts = relations.groups.get_member_counts(groups)
+        groups_sorted = sorted(groups, key=lambda g: (counts.get(g) or 0), reverse=True)
+
+        # 分批 60 个并发：bot 级 60/qpm，一批用完配额后 sleep 60s 等窗口恢复
+        BATCH = 60
+        for i in range(0, len(groups_sorted), BATCH):
+            batch = groups_sorted[i:i + BATCH]
+            await asyncio.gather(
+                *(self._try_send(gid, message, info.uid, "live-start") for gid in batch)
+            )
+            if i + BATCH < len(groups_sorted):
+                await asyncio.sleep(60)
 
     async def on_live_stop(self, info: LiveInfo, _old_info: LiveInfo | None = None) -> None:
         if _old_info is None:

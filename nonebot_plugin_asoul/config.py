@@ -74,5 +74,9 @@ class Config(BaseModel):
     # 用户违禁累计达此次数后自动拉黑
     violation_threshold: int = 3
 
+    # ── 欢迎消息（加好友/加群事件触发，被动回复小然指令中心）──
+    # 总开关：默认开
+    welcome_enabled: bool = True
+
 
 config = get_plugin_config(Config)

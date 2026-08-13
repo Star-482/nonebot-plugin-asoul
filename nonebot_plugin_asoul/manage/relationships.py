@@ -11,6 +11,7 @@ GroupMsgReceive/Reject）自动落库。供 live_subscription/announcement 等�
 from typing import Optional
 
 from nonebot import on_message, on_notice
+from nonebot.adapters.qq import Bot
 from nonebot.adapters.qq.event import (
     C2CMessageCreateEvent,
     C2CMsgReceiveEvent,
@@ -26,7 +27,10 @@ from nonebot.adapters.qq.event import (
 from nonebot.log import logger
 from nonebot.rule import Rule
 
+from ..config import config
 from ..database.repositories import FriendsRepo, GroupsRepo
+from ..markdown import get_welcome_markdown
+from .qq_api import get_group_info
 
 
 class RelationshipService:
@@ -146,6 +150,12 @@ _group_msg_reject = on_notice(rule=Rule(_is_group_msg_reject), priority=100)
 async def _on_friend_add(event: FriendAddEvent):
     relations.mark_friend_added(event.openid)
     logger.info(f"好友添加: {event.openid}")
+    if config.welcome_enabled:
+        try:
+            await _friend_add.send(get_welcome_markdown("friend"))
+            logger.info(f"[welcome] 已向新好友发送指令中心: {event.openid}")
+        except Exception as e:
+            logger.warning(f"[welcome] 好友欢迎消息发送失败 openid={event.openid}: {e!r}")
 
 
 @_friend_del.handle()
@@ -167,9 +177,23 @@ async def _on_c2c_reject(event: C2CMsgRejectEvent):
 
 
 @_group_add_robot.handle()
-async def _on_group_add_robot(event: GroupAddRobotEvent):
+async def _on_group_add_robot(event: GroupAddRobotEvent, bot: Bot):
     relations.mark_group_added(event.group_openid, event.op_member_openid)
     logger.info(f"bot 被加入群: {event.group_openid} (op={event.op_member_openid})")
+    # 拉取群信息（白名单接口，失败不阻塞落库与欢迎消息）
+    # 不拉 bot_state：刚进群群主尚未开主动推送，allow_proactive_msg 无意义；
+    # push_state 由后续 GroupMsgReceive/Reject 事件或首次主动推送自愈
+    info = await get_group_info(bot, event.group_openid)
+    if info:
+        relations.groups.update_info(
+            event.group_openid, info["name"], info["intro"], info["member_count"]
+        )
+    if config.welcome_enabled:
+        try:
+            await _group_add_robot.send(get_welcome_markdown("group"))
+            logger.info(f"[welcome] 已向新群发送指令中心: {event.group_openid}")
+        except Exception as e:
+            logger.warning(f"[welcome] 群欢迎消息发送失败 gid={event.group_openid}: {e!r}")
 
 
 @_group_del_robot.handle()
