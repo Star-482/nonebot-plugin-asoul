@@ -21,15 +21,6 @@ from nonebot.internal.matcher import Matcher
 from nonebot.params import CommandArg
 from nonebot.plugin.on import on_command
 from nonebot.adapters.qq import Message, MessageSegment
-from nonebot.adapters.qq.models import (
-    Action,
-    Button,
-    InlineKeyboard,
-    InlineKeyboardRow,
-    MessageKeyboard,
-    Permission,
-    RenderData,
-)
 
 from ..config import config
 
@@ -37,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 from .session import DianaSession, shutdown, list_items
 from .exceptions import DianaError
-from ..markdown import _text_chain
+from ..markdown import KB_DIANA_NAV, text_chain
 
 # ── stat 变化的中文标签和图标 ──
 _CHANGE_LABELS = [
@@ -334,50 +325,10 @@ def _build_checkin_dup_msg(streak: int, balance: int) -> str:
     return f"你今天已经签到过了哦~\n🔥 连续签到 {streak} 天 | 🪙 余额 {balance} 嘉心糖币"
 
 
-def _mk_cmd_button(button_id: str, label: str, command: str) -> Button:
-    """构造指令注入按钮（点击插入输入框，用户自行发送）。"""
-    return Button(
-        id=button_id,
-        render_data=RenderData(label=label, visited_label=label, style=1),
-        action=Action(
-            type=2,
-            permission=Permission(type=2),
-            data=command,
-            reply=False,
-            enter=False,
-            unsupport_tips=f"请手动发送：{command}",
-        ),
-    )
-
-
-def _diana_nav_keyboard() -> MessageKeyboard:
-    """签到后引流到 Diana 其他玩法的按钮面板。"""
-    return MessageKeyboard(
-        content=InlineKeyboard(
-            rows=[
-                InlineKeyboardRow(buttons=[
-                    _mk_cmd_button("diana_nav_status", "看状态", "/然然状态"),
-                    _mk_cmd_button("diana_nav_costume", "换装", "/换装"),
-                    _mk_cmd_button("diana_nav_help", "更多玩法", "/然然帮助"),
-                ]),
-                InlineKeyboardRow(buttons=[
-                    _mk_cmd_button("diana_nav_feed", "投喂", "/然然帮助 投喂"),
-                    _mk_cmd_button("diana_nav_play", "玩耍", "/然然帮助 玩耍"),
-                    _mk_cmd_button("diana_nav_work", "打工", "/然然帮助 打工"),
-                ]),
-                InlineKeyboardRow(buttons=[
-                    _mk_cmd_button("diana_nav_interact", "互动", "/然然帮助 互动"),
-                    _mk_cmd_button("diana_nav_daily", "日常", "/然然帮助 日常"),
-                ]),
-            ]
-        )
-    )
-
-
 async def _send_checkin_reply(matcher: Matcher, text: str) -> None:
     """发送签到回复（markdown 文本 + Diana 玩法引流按钮）。"""
     await matcher.send(
-        MessageSegment.markdown(text) + MessageSegment.keyboard(_diana_nav_keyboard())
+        MessageSegment.markdown(text) + MessageSegment.keyboard(KB_DIANA_NAV)
     )
 
 
@@ -616,7 +567,7 @@ def _build_diana_help_overview() -> str:
     for _cat, name, _prefix, desc in _HELP_CATEGORIES:
         lines.append(f"## {name}")
         lines.append(desc)
-        lines.append(_text_chain(f"/然然帮助 {name}", f"查看{name}列表"))
+        lines.append(text_chain(f"/然然帮助 {name}", f"查看{name}列表"))
         lines.append("")
     lines.append("## 其他指令")
     others = [
@@ -627,7 +578,7 @@ def _build_diana_help_overview() -> str:
         ("/解锁", "解锁服装"),
         ("/然然", "聊天"),
     ]
-    lines.append(" · ".join(_text_chain(t, s) for t, s in others))
+    lines.append(" · ".join(text_chain(t, s) for t, s in others))
     return "\n".join(lines)
 
 
@@ -644,12 +595,12 @@ def _build_diana_help_category(category: str) -> str:
     for i in range(0, len(items), 3):
         chunk = items[i:i + 3]
         links = [
-            _text_chain(f"{prefix} {it['id']}", f"{it['emoji']} {it['id']}")
+            text_chain(f"{prefix} {it['id']}", f"{it['emoji']} {it['id']}")
             for it in chunk
         ]
         lines.append(" · ".join(links))
     lines.append("")
-    lines.append(f"返回{_text_chain('/然然帮助', '帮助总览')}")
+    lines.append(f"返回{text_chain('/然然帮助', '帮助总览')}")
     return "\n".join(lines)
 
 
@@ -660,7 +611,7 @@ async def _(args: Message = CommandArg()):
     if category:
         text = _build_diana_help_category(category)
     elif arg:
-        text = f"未找到分类「{arg}」。\n返回{_text_chain('/然然帮助', '帮助总览')}"
+        text = f"未找到分类「{arg}」。\n返回{text_chain('/然然帮助', '帮助总览')}"
     else:
         text = _build_diana_help_overview()
     await diana_help.finish(MessageSegment.markdown(text))
