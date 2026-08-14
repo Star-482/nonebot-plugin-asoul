@@ -9,20 +9,12 @@ import asyncio
 from nonebot.adapters import Event
 from nonebot.adapters.qq import Bot, Message, MessageSegment
 from nonebot.adapters.qq.event import GroupMessageCreateEvent
-from nonebot.adapters.qq.models import (
-    Action,
-    Button,
-    InlineKeyboard,
-    InlineKeyboardRow,
-    MessageKeyboard,
-    Permission,
-    RenderData,
-)
 from nonebot.params import CommandArg
 from nonebot.plugin.on import on_command
 from nonebot.permission import SUPERUSER
 
 from ..config import config
+from ..markdown import URL_USAGE_DOC, build_keyboard, live_sub_all_button, live_sub_button
 from .manager import manager
 from ..manage.relationships import relations
 from ..manage.qq_api import get_group_bot_state
@@ -43,12 +35,11 @@ _INSTRUCTIONS = (
     "❗同时需要群主点击 bot 头像，打开右上角的设置，"
     "允许机器人在群聊内主动发言。❗没有该选项请尝试更新 QQ。\n"
     "其他UP主请查看下方说明⬇️。\n"
-    "[查看操作说明](https://docs.qq.com/doc/DRkFEbEhoa1Jzc05r)"
+    f"[查看操作说明]({URL_USAGE_DOC})"
 )
 
 # "全部"对应的五位成员
 _ALL_NAMES = ["嘉然", "贝拉", "乃琳", "心宜", "思诺"]
-_ALL_NAMES_STR = " ".join(_ALL_NAMES)
 
 # 预定义按钮布局：第一排 嘉然/贝拉/乃琳，第二排 心宜/思诺
 _BUTTON_MEMBERS = [
@@ -57,44 +48,18 @@ _BUTTON_MEMBERS = [
 ]
 
 
-def _mk_cmd_button(button_id: str, label: str, command: str) -> Button:
-    return Button(
-        id=button_id,
-        render_data=RenderData(label=label, visited_label=label, style=1),
-        action=Action(
-            type=2,
-            permission=Permission(type=2),
-            data=command,
-            reply=False,
-            enter=False,
-            unsupport_tips=f"请手动发送：{command}",
-        ),
-    )
-
-
-def _build_md_keyboard(prefix: str) -> tuple[str, MessageKeyboard]:
+def _build_md_keyboard(prefix: str):
     """构建无参时的 Markdown 按钮面板。prefix 为 "/订阅开播" 或 "/取消订阅"。"""
     is_unsub = "取消" in prefix
     md = f"## {'取消' if is_unsub else ''}开播通知\n\n{_INSTRUCTIONS}"
     rows = []
     for members in _BUTTON_MEMBERS:
-        buttons = []
-        for name in members:
-            cmd = f"{prefix} {name}"
-            buttons.append(_mk_cmd_button(f"live_sub_{name}", name, cmd))
-        rows.append(InlineKeyboardRow(buttons=buttons))
+        rows.append([live_sub_button(name, prefix) for name in members])
 
     # "全部"按钮：插入五位成员名作为参数
-    all_label = "全部取消" if is_unsub else "全部订阅"
-    all_cmd = f"{prefix} {_ALL_NAMES_STR}"
-    rows.append(
-        InlineKeyboardRow(
-            buttons=[_mk_cmd_button("live_sub_all", all_label, all_cmd)]
-        )
-    )
+    rows.append([live_sub_all_button(_ALL_NAMES, prefix)])
 
-    keyboard = MessageKeyboard(content=InlineKeyboard(rows=rows))
-    return md, keyboard
+    return md, build_keyboard(rows)
 
 
 def _parse_keywords(text: str) -> list[str]:

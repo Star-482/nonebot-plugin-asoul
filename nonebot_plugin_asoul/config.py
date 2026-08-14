@@ -27,6 +27,11 @@ class Config(BaseModel):
     live_poll_interval: int = 60
     live_poll_http_timeout: float = 10.0
 
+    # ── 直播数据：粉丝统计（5 人粉丝数，每日基准 + 内存缓存）──
+    follower_poll_interval: int = 600    # 每 10 分钟定时刷新内存缓存（不写库）
+    follower_cache_ttl: int = 600        # 命令查询时缓存的新鲜度（秒），超时才现场调 API
+    follower_base_hour: int = 6          # 每日基准时刻（东八区），当日 6:00 写库
+
     # 对象存储（腾讯云 COS，S3 兼容协议；也可填其他 S3 兼容存储）
     cos_id: str
     cos_key: str
@@ -77,6 +82,12 @@ class Config(BaseModel):
     # ── 欢迎消息（加好友/加群事件触发，被动回复小然指令中心）──
     # 总开关：默认开
     welcome_enabled: bool = True
+
+    # ── 新成员入群欢迎（GroupMemberAddEvent 触发；群主/管理员可开关+自定义，自定义经 SUPERUSER 复核，不通过回退默认）──
+    # 总开关：默认开
+    member_welcome_enabled: bool = True
+    # 默认欢迎语（群未自定义或审核被拒回退时使用）
+    member_welcome_default_text: str = "欢迎加入本群～我是嘉然 Diana，@我可以玩哦"
 
 
 config = get_plugin_config(Config)

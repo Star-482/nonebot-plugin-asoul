@@ -7,6 +7,9 @@
 from .messages import MessageStore, get_store, init_store, store
 from .relationships import GroupsRepo, FriendsRepo
 from .subscriptions import SubscriptionsRepo, UpstreamsRepo
+from .group_admin import GroupWelcomeRepo, WelcomeReviewRepo
+from .command_stats import CommandStatsRepo
+from .follower_stats import FollowerStatsRepo
 
 __all__ = [
     "MessageStore",
@@ -17,4 +20,8 @@ __all__ = [
     "FriendsRepo",
     "SubscriptionsRepo",
     "UpstreamsRepo",
+    "GroupWelcomeRepo",
+    "WelcomeReviewRepo",
+    "CommandStatsRepo",
+    "FollowerStatsRepo",
 ]

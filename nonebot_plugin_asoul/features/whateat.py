@@ -15,18 +15,10 @@ from typing import Literal
 from nonebot import get_driver
 from nonebot.adapters import Event
 from nonebot.adapters.qq import Message, MessageSegment
-from nonebot.adapters.qq.models import (
-    Action,
-    Button,
-    InlineKeyboard,
-    InlineKeyboardRow,
-    MessageKeyboard,
-    Permission,
-    RenderData,
-)
 from nonebot.plugin.on import on_command
 
 from ..config import config
+from ..markdown import BTN_DRINK_AGAIN, BTN_EAT_AGAIN, URL_SUBMIT, build_keyboard
 from ..storage import get_bucket, KEY_PREFIX, manifest
 
 NICKNAME = list(get_driver().config.nickname)
@@ -133,7 +125,6 @@ async def build_whateat_msg(menu_type: Literal["drink", "eat"], action_verb: str
     """
     bucket = get_bucket()
     prefix = KEY_PREFIX["whateat_eat"] if menu_type == "eat" else KEY_PREFIX["whateat_drink"]
-    command = "/今天吃什么" if menu_type == "eat" else "/今天喝什么"
     food_word = "美食" if menu_type == "eat" else "饮品"
 
     pic_path, pic_name, sub_info = _random_pic(menu_type)
@@ -154,19 +145,10 @@ async def build_whateat_msg(menu_type: Literal["drink", "eat"], action_verb: str
                 submission_note = " 🏷️用户投稿\n\n"
         else:
             submission_note = "\n"
-        md = f"### 🎉{BOT_NAME}建议你{action_verb}🎉\n\n**{pic_name}**\n\n{submission_note}{md_img}\n\n\n没有心仪的{food_word}？[点击投稿](https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ)"
-        keyboard = MessageKeyboard(
-            content=InlineKeyboard(
-                rows=[InlineKeyboardRow(buttons=[
-                    Button(
-                        id=f"whateat_{menu_type}_again",
-                        render_data=RenderData(label="换一个", visited_label="换一个", style=1),
-                        action=Action(type=2, permission=Permission(type=2), data=command,
-                                      reply=False, enter=True, unsupport_tips=f"请手动发送：{command}"),
-                    ),
-                ])]
-            )
-        )
+        md = f"### 🎉{BOT_NAME}建议你{action_verb}🎉\n\n**{pic_name}**\n\n{submission_note}{md_img}\n\n\n没有心仪的{food_word}？[点击投稿]({URL_SUBMIT})"
+        keyboard = build_keyboard([
+            [BTN_EAT_AGAIN if menu_type == "eat" else BTN_DRINK_AGAIN]
+        ])
         return MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard)
     else:
         submission_note = ""

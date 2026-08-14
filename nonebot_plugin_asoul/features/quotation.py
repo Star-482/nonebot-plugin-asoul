@@ -8,18 +8,10 @@ import random
 
 from nonebot.adapters import Event
 from nonebot.adapters.qq import MessageSegment
-from nonebot.adapters.qq.models import (
-    Action,
-    Button,
-    InlineKeyboard,
-    InlineKeyboardRow,
-    MessageKeyboard,
-    Permission,
-    RenderData,
-)
 from nonebot.plugin.on import on_command
 
 from ..config import config
+from ..markdown import BTN_QUOTATION_AGAIN, URL_SUBMIT, build_keyboard
 from ..utils import open_json
 
 my_openid = on_command("我的id", priority=config.command_priority)
@@ -43,27 +35,6 @@ async def _():
     submitter = entry.get("submitter", "")
     quoted = "\n".join(f"> {line}" if line else ">" for line in content.split("\n"))
     submission_note = f"🏷️用户投稿 | 投稿人：{submitter}\n\n" if submitter else ""
-    md = f"## {title}\n\n{quoted}\n\n\n{submission_note}你也想发病？[点我投稿](https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ) 分享你的小作文吧~"
-    keyboard = MessageKeyboard(
-        content=InlineKeyboard(
-            rows=[
-                InlineKeyboardRow(
-                    buttons=[
-                        Button(
-                            id="quotation_again",
-                            render_data=RenderData(label="再来一篇", visited_label="再来一篇", style=1),
-                            action=Action(
-                                type=2,
-                                permission=Permission(type=2),
-                                data="/发病小作文",
-                                reply=False,
-                                enter=False,
-                                unsupport_tips="请手动发送：/发病小作文",
-                            ),
-                        ),
-                    ]
-                )
-            ]
-        )
-    )
+    md = f"## {title}\n\n{quoted}\n\n\n{submission_note}你也想发病？[点我投稿]({URL_SUBMIT}) 分享你的小作文吧~"
+    keyboard = build_keyboard([[BTN_QUOTATION_AGAIN]])
     await quotation.finish(MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard))

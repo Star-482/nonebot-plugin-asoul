@@ -5,6 +5,7 @@
 @Description: B站直播 API 封装。POST 批量查询 up主 直播状态。
 """
 from dataclasses import dataclass
+from typing import Optional
 
 import httpx
 from nonebot.log import logger
@@ -90,6 +91,31 @@ class BiliLiveAPI:
                 continue
 
         return result
+
+    # ── 粉丝数（公开接口 GET /x/relation/stat）──
+
+    FOLLOWER_URL = "https://api.bilibili.com/x/relation/stat"
+
+    async def get_follower(self, uid: int) -> Optional[int]:
+        """查询单个 up 主粉丝数；失败/非 0 code 返回 None（白名单风格，不抛）。"""
+        try:
+            resp = await self._client.get(
+                self.FOLLOWER_URL,
+                params={"vmid": uid},
+                headers={"Referer": "https://www.bilibili.com/"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except (httpx.HTTPError, ValueError):
+            logger.warning(f"粉丝数 API 请求失败 uid={uid}")
+            return None
+        if data.get("code") != 0:
+            logger.warning(
+                f"粉丝数 API 返回错误 uid={uid}: code={data.get('code')} message={data.get('message')}"
+            )
+            return None
+        follower = (data.get("data") or {}).get("follower")
+        return int(follower) if isinstance(follower, (int, float)) else None
 
     async def close(self) -> None:
         await self._client.aclose()

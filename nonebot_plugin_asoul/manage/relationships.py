@@ -202,8 +202,8 @@ def _is_group_at_msg(event) -> bool:
     return isinstance(event, GroupAtMessageCreateEvent)
 
 
-_c2c_msg = on_message(rule=Rule(_is_c2c_msg), priority=100, block=False)
-_group_at_msg = on_message(rule=Rule(_is_group_at_msg), priority=100, block=False)
+_c2c_msg = on_message(rule=Rule(_is_c2c_msg), priority=10, block=False)
+_group_at_msg = on_message(rule=Rule(_is_group_at_msg), priority=10, block=False)
 
 
 @_c2c_msg.handle()

@@ -10,18 +10,10 @@ import random
 from pathlib import Path
 
 from nonebot.adapters.qq import MessageSegment
-from nonebot.adapters.qq.models import (
-    Action,
-    Button,
-    InlineKeyboard,
-    InlineKeyboardRow,
-    MessageKeyboard,
-    Permission,
-    RenderData,
-)
 from nonebot.plugin.on import on_command
 
 from ..config import config
+from ..markdown import BTN_WIFE_AGAIN, URL_SUBMIT, build_keyboard
 from ..storage import get_bucket, KEY_PREFIX, manifest
 
 
@@ -116,31 +108,10 @@ async def get_random_wife_md_message():
         f"你今日抽取的老婆是 **{name}**\n\n"
         f"分类：{category}{submission_note}\n\n"
         f"{md_img}\n\n"
-        "添加喜欢的角色[【点击投稿】](https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ)"
+        f"添加喜欢的角色[【点击投稿】]({URL_SUBMIT})"
     )
 
-    keyboard = MessageKeyboard(
-        content=InlineKeyboard(
-            rows=[
-                InlineKeyboardRow(
-                    buttons=[
-                        Button(
-                            id="wife_again",
-                            render_data=RenderData(label="再抽老婆", visited_label="再抽老婆", style=1),
-                            action=Action(
-                                type=2,
-                                permission=Permission(type=2),
-                                data="/抽老婆",
-                                reply=False,
-                                enter=False,
-                                unsupport_tips="请手动发送：/抽老婆",
-                            ),
-                        ),
-                    ]
-                )
-            ]
-        )
-    )
+    keyboard = build_keyboard([[BTN_WIFE_AGAIN]])
 
     return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)
 

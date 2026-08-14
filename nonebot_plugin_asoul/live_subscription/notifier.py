@@ -11,35 +11,14 @@ import traceback
 
 from nonebot import get_bot
 from nonebot.adapters.qq import ActionFailed, MessageSegment
-from nonebot.adapters.qq.models import (
-    Action,
-    Button,
-    InlineKeyboard,
-    InlineKeyboardRow,
-    MessageKeyboard,
-    Permission,
-    RenderData,
-)
 from nonebot.log import logger
 
 from .api import LiveInfo
 from .manager import manager
 from ..manage.relationships import relations
 from .session import poll_session_id, screenshot_session_page
+from ..markdown import BTN_LIVE_DATA, URL_LIVE_DATA, build_keyboard, live_go_button
 from ..storage import get_bucket, KEY_PREFIX
-
-
-def _mk_link_button(url: str, label: str = "去直播间") -> Button:
-    return Button(
-        id="live_goto",
-        render_data=RenderData(label=label, visited_label=label, style=1),
-        action=Action(
-            type=0,
-            permission=Permission(type=2),
-            data=url,
-            unsupport_tips=f"请手动打开：{url}",
-        ),
-    )
 
 
 # 主动消息频控错误码（HTTP 400, 业务码 40034100）；429 同样按频控处理
@@ -160,11 +139,9 @@ class Notifier:
             f"**{info.title}**\n\n"
             f"![#1920px #1080px]({info.cover})"
         )
-        keyboard = MessageKeyboard(
-            content=InlineKeyboard(
-                rows=[InlineKeyboardRow(buttons=[_mk_link_button(info.url)])]
-            )
-        )
+        keyboard = build_keyboard([
+            [live_go_button(info.url)]
+        ])
         message = MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard)
 
         # 按群人数降序（大群优先），人数未知排最后
@@ -244,14 +221,10 @@ class Notifier:
             f"## {uname} 下播了\n\n"
             f"**{old_info.title}** 直播已结束\n\n"
             f"{md_img}\n\n"
-            f"[查看完整数据](https://live.pixel-asoul.club)"
+            f"[查看完整数据]({URL_LIVE_DATA})"
         )
 
-        keyboard = MessageKeyboard(
-            content=InlineKeyboard(
-                rows=[InlineKeyboardRow(buttons=[_mk_link_button("https://live.pixel-asoul.club", "查看数据")])]
-            )
-        )
+        keyboard = build_keyboard([[BTN_LIVE_DATA]])
         message = MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard)
 
         await asyncio.gather(

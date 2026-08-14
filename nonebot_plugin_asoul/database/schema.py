@@ -68,4 +68,50 @@ CREATE TABLE IF NOT EXISTS upstreams (
     uid INTEGER PRIMARY KEY,
     name TEXT NOT NULL
 );
+
+-- 每群入群欢迎配置（当前生效）
+CREATE TABLE IF NOT EXISTS group_welcome (
+    group_openid TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 0,   -- 0=关 1=开
+    text TEXT,                             -- 已审核通过的欢迎语
+    updated_at TEXT NOT NULL,
+    updated_by TEXT                        -- 最后操作者 openid（群管或审核 SUPERUSER）
+);
+
+-- 自定义欢迎语审核流水
+CREATE TABLE IF NOT EXISTS welcome_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_openid TEXT NOT NULL,
+    submitter_openid TEXT NOT NULL,
+    submitter_role TEXT,                   -- admin/owner
+    pending_text TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',-- pending/approved/rejected
+    submitted_at TEXT NOT NULL,
+    reviewed_at TEXT,
+    reviewer_openid TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_welcome_reviews_status ON welcome_reviews(status);
+
+-- 命令使用统计（替代 usage_detail.jsonl + usage_summary.json）
+CREATE TABLE IF NOT EXISTS command_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts TEXT NOT NULL,                      -- ISO8601 时间，按天统计用 substr(ts,1,10)
+    command TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    scene_id TEXT NOT NULL DEFAULT '',     -- 群 openid / friend_xxx / guild gid/cid
+    status TEXT NOT NULL DEFAULT 'success' -- success / failed
+);
+CREATE INDEX IF NOT EXISTS idx_cmd_stats_day ON command_stats(substr(ts, 1, 10));
+CREATE INDEX IF NOT EXISTS idx_cmd_stats_command ON command_stats(command);
+CREATE INDEX IF NOT EXISTS idx_cmd_stats_user ON command_stats(user_id);
+
+-- 粉丝数每日基准（直播数据功能：每日 6:00 采集一次，作为涨粉计算基准）
+CREATE TABLE IF NOT EXISTS follower_daily_base (
+    uid INTEGER NOT NULL,
+    day TEXT NOT NULL,              -- 基准日（东八区，以 6:00 为日界），如 2026-08-15
+    follower INTEGER NOT NULL,
+    fetched_at TEXT NOT NULL,       -- 采集时刻 ISO8601
+    PRIMARY KEY (uid, day)
+);
+CREATE INDEX IF NOT EXISTS idx_follower_base_time ON follower_daily_base(uid, fetched_at);
 """

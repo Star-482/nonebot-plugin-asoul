@@ -99,8 +99,11 @@ async def violation_preprocessor(event: Event, matcher: Matcher, state: T_State)
     if not config.violation_enabled:
         return
     module_name = matcher.module_name or ""
-    # 只对 agent 响应器做违禁词检查；relationships 等关系兜底 matcher 不检查
-    if not module_name.startswith("nonebot_plugin_asoul.agent"):
+    # 只对 agent 响应器做违禁词检查；relationships 等关系兜底 matcher 不检查。
+    # 注意 module_name 是完整导入路径（如 src.plugins.nonebot_plugin_asoul.agent.commands），
+    # 不能用 startswith 锚定包名前缀，按模块段判断更稳。
+    parts = module_name.split(".")
+    if "nonebot_plugin_asoul" not in parts or "agent" not in parts:
         return
     if not isinstance(event, MessageEvent):
         return  # 非消息事件（notice/meta）不检查违禁词
