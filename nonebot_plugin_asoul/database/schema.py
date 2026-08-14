@@ -91,4 +91,17 @@ CREATE TABLE IF NOT EXISTS welcome_reviews (
     reviewer_openid TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_welcome_reviews_status ON welcome_reviews(status);
+
+-- 命令使用统计（替代 usage_detail.jsonl + usage_summary.json）
+CREATE TABLE IF NOT EXISTS command_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts TEXT NOT NULL,                      -- ISO8601 时间，按天统计用 substr(ts,1,10)
+    command TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    scene_id TEXT NOT NULL DEFAULT '',     -- 群 openid / friend_xxx / guild gid/cid
+    status TEXT NOT NULL DEFAULT 'success' -- success / failed
+);
+CREATE INDEX IF NOT EXISTS idx_cmd_stats_day ON command_stats(substr(ts, 1, 10));
+CREATE INDEX IF NOT EXISTS idx_cmd_stats_command ON command_stats(command);
+CREATE INDEX IF NOT EXISTS idx_cmd_stats_user ON command_stats(user_id);
 """

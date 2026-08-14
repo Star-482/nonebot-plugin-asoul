@@ -20,7 +20,7 @@ from nonebot.adapters.qq.event import (
 from nonebot.log import logger
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
-from nonebot.rule import Rule, to_me
+from nonebot.rule import Rule
 
 from ..config import config
 from ..database.repositories import GroupWelcomeRepo, WelcomeReviewRepo
@@ -107,10 +107,10 @@ async def _on_member_add(event: GroupMemberAddEvent):
 
 # ── 群主/管理员：欢迎语开关 / 自定义 / 查看 ──
 
-welcome_on = on_command("开启欢迎语", rule=Rule(_is_group_msg) & to_me(), priority=config.command_priority)
-welcome_off = on_command("关闭欢迎语", rule=Rule(_is_group_msg) & to_me(), priority=config.command_priority)
-set_welcome = on_command("设置欢迎语", rule=Rule(_is_group_msg) & to_me(), priority=config.command_priority)
-view_welcome = on_command("查看欢迎语", rule=Rule(_is_group_msg) & to_me(), priority=config.command_priority)
+welcome_on = on_command("开启欢迎语", rule=Rule(_is_group_msg), priority=config.command_priority)
+welcome_off = on_command("关闭欢迎语", rule=Rule(_is_group_msg), priority=config.command_priority)
+set_welcome = on_command("设置欢迎语", rule=Rule(_is_group_msg), priority=config.command_priority)
+view_welcome = on_command("查看欢迎语", rule=Rule(_is_group_msg), priority=config.command_priority)
 
 
 @welcome_on.handle()
@@ -164,7 +164,7 @@ async def _view_welcome(event: GroupMessageCreateEvent):
 
 # ── SUPERUSER：审核自定义欢迎语（C2C 按钮注入或手动）──
 
-review_welcome = on_command("审核欢迎语", rule=to_me(), permission=SUPERUSER, priority=config.command_priority)
+review_welcome = on_command("审核欢迎语", permission=SUPERUSER, priority=config.command_priority)
 
 
 @review_welcome.handle()
@@ -194,8 +194,8 @@ async def _review_welcome(event: Event, arg: Message = CommandArg()):
 
 # ── 群主/管理员/SUPERUSER：禁言 / 解禁 ──
 
-mute = on_command("禁言", rule=Rule(_is_group_msg) & to_me(), priority=config.command_priority)
-unmute = on_command("解禁", rule=Rule(_is_group_msg) & to_me(), priority=config.command_priority)
+mute = on_command("禁言", rule=Rule(_is_group_msg), priority=config.command_priority)
+unmute = on_command("解禁", rule=Rule(_is_group_msg), priority=config.command_priority)
 
 
 @mute.handle()
@@ -215,7 +215,7 @@ async def _mute(event: GroupMessageCreateEvent, bot: Bot, arg: Message = Command
         [{"op": "add", "member_openid": target, "mute_expire_at": expire}],
     )
     if ok:
-        await mute.finish(f"已禁言至 {expire}。")
+        return  # 静默：禁言成功不回复，避免刷屏
     await mute.finish(f"禁言失败：{msg}")
 
 
@@ -231,5 +231,5 @@ async def _unmute(event: GroupMessageCreateEvent, bot: Bot):
         [{"op": "del", "member_openid": target, "mute_expire_at": ""}],
     )
     if ok:
-        await unmute.finish("已解除禁言。")
+        return  # 静默：解禁成功不回复，避免刷屏
     await unmute.finish(f"解禁失败：{msg}")
