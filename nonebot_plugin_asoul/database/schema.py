@@ -104,4 +104,14 @@ CREATE TABLE IF NOT EXISTS command_stats (
 CREATE INDEX IF NOT EXISTS idx_cmd_stats_day ON command_stats(substr(ts, 1, 10));
 CREATE INDEX IF NOT EXISTS idx_cmd_stats_command ON command_stats(command);
 CREATE INDEX IF NOT EXISTS idx_cmd_stats_user ON command_stats(user_id);
+
+-- 粉丝数每日基准（直播数据功能：每日 6:00 采集一次，作为涨粉计算基准）
+CREATE TABLE IF NOT EXISTS follower_daily_base (
+    uid INTEGER NOT NULL,
+    day TEXT NOT NULL,              -- 基准日（东八区，以 6:00 为日界），如 2026-08-15
+    follower INTEGER NOT NULL,
+    fetched_at TEXT NOT NULL,       -- 采集时刻 ISO8601
+    PRIMARY KEY (uid, day)
+);
+CREATE INDEX IF NOT EXISTS idx_follower_base_time ON follower_daily_base(uid, fetched_at);
 """

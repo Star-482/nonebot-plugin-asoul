@@ -27,6 +27,11 @@ class Config(BaseModel):
     live_poll_interval: int = 60
     live_poll_http_timeout: float = 10.0
 
+    # ── 直播数据：粉丝统计（5 人粉丝数，每日基准 + 内存缓存）──
+    follower_poll_interval: int = 600    # 每 10 分钟定时刷新内存缓存（不写库）
+    follower_cache_ttl: int = 600        # 命令查询时缓存的新鲜度（秒），超时才现场调 API
+    follower_base_hour: int = 6          # 每日基准时刻（东八区），当日 6:00 写库
+
     # 对象存储（腾讯云 COS，S3 兼容协议；也可填其他 S3 兼容存储）
     cos_id: str
     cos_key: str

@@ -305,3 +305,43 @@ def get_member_welcome_md(text: str, member_openid: str) -> MessageSegment:
         f"> 群管操作：{TC_DISABLE_WELCOME} · {TC_SET_WELCOME}"
     )
     return MessageSegment.markdown(content)
+
+
+def _trend_md(value: str) -> str:
+    """涨跌值上色（QQ md 走 LaTeX 语法）：正数红、负数绿；"-"（无数据）原样。"""
+    if value.startswith("+"):
+        return rf'$\textcolor{{#FF0000}}{{\text{{{value}}}}}$'
+    if value.startswith("-") and value != "-":
+        return rf'$\textcolor{{#27AE60}}{{\text{{{value}}}}}$'
+    return value
+
+
+def get_follower_stats_md(
+    rows: list[dict],
+    *,
+    updated_at: str = "",
+    base_hour: int = 6,
+    note: str = "",
+) -> str:
+    """直播数据 · 粉丝数统计 md 正文（供 /粉丝数据 命令使用）。
+
+    rows: [{name, current, today}]，各值为已格式化字符串（"1,234" / "+56" / "—"）。
+    updated_at: 数据更新时间文案；base_hour: 每日基准时刻，用于口径标注。
+    7天/30天涨粉列暂未开放（历史基准积累后恢复）。
+    """
+    lines = [
+        "## 📊 直播数据 · 粉丝数\n",
+        "| 成员 | 当前粉丝 | 今日涨粉 |",
+        "| --- | --- | --- |",
+    ]
+    for r in rows:
+        lines.append(f"| {r['name']} | {r['current']} | {_trend_md(r['today'])} |")
+        # 7天/30天涨粉：后续开放
+        # lines.append(
+        #     f"| {r['name']} | {r['current']} | {r['today']} | {r['week']} | {r['month']} |"
+        # )
+    lines.append("")
+    lines.append(f"> 涨粉按每日 {base_hour}:00 基准结算" + (f" · 数据更新于 {updated_at}" if updated_at else ""))
+    if note:
+        lines.append(f"> {note}")
+    return "\n".join(lines)
