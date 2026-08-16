@@ -2,9 +2,12 @@
 @Author: star_482
 @Date: 2026/8/13
 @File: group_admin
-@Description: 群管功能--入群欢迎（群主/管理员开关 + 自定义，自定义经 SUPERUSER 复核，不通过回退默认）+ 禁言/解禁。
+@Description: 群管功能--入群欢迎（群主/管理员开关 + 自定义，自定义经 SUPERUSER 复核，不通过回退默认）+ 禁言/解禁 + 关键词撤回。
 入群欢迎配置与审核流水持久化到 database（group_welcome / welcome_reviews 表）。
 禁言 API 封装在 manage/qq_api（adapter 未提供，借 bot._request 自调 /v2/groups/{gid}/restrict_chat_setting）。
+关键词撤回：群主/管理员 /设置撤回关键词（整表覆盖）、/查看撤回关键词、/删除撤回关键词（移除指定词）、
+/清空撤回关键词，event_preprocessor 检测群消息命中后调 Bot.delete_group_message 撤回；
+bot 需为群管理员身份才能撤回成功（API 失败时记录日志，不阻塞事件）。
 群管身份用 event.author.member_role（admin/owner）判断；禁言需 bot 是群管理员，失败据 API message 提示。
 """
 from datetime import datetime, timedelta, timezone
@@ -17,13 +20,15 @@ from nonebot.adapters.qq.event import (
     GroupMessageCreateEvent,
     GroupMemberAddEvent,
 )
+from nonebot.adapters.qq.exception import ActionFailed
 from nonebot.log import logger
+from nonebot.message import event_preprocessor
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 from nonebot.rule import Rule
 
 from ..config import config
-from ..database.repositories import GroupWelcomeRepo, WelcomeReviewRepo
+from ..database.repositories import GroupRecallRepo, GroupWelcomeRepo, WelcomeReviewRepo
 from ..manage.qq_api import set_group_member_mute
 from ..markdown import get_member_welcome_md, get_welcome_review_md
 
@@ -31,6 +36,7 @@ _TZ = timezone(timedelta(hours=8))
 
 welcome_repo = GroupWelcomeRepo()
 review_repo = WelcomeReviewRepo()
+recall_repo = GroupRecallRepo()
 
 
 # ── 辅助 ──
@@ -49,6 +55,17 @@ def _is_group_admin(event: GroupMessageCreateEvent) -> bool:
         return True
     role = getattr(getattr(event, "author", None), "member_role", None)
     return role in ("admin", "owner")
+
+
+def _find_recall_keyword(keywords: list[str], text: str) -> Optional[str]:
+    """返回文本命中的第一个撤回关键词；未命中返回 None。大小写不敏感。"""
+    if not text:
+        return None
+    lowered = text.lower()
+    for word in keywords:
+        if word and word.lower() in lowered:
+            return word
+    return None
 
 
 def _extract_target(event: GroupMessageCreateEvent) -> Optional[str]:
@@ -86,6 +103,63 @@ def _parse_duration(text: str) -> Optional[timedelta]:
 
 def _to_rfc3339(delta: timedelta) -> str:
     return (datetime.now(_TZ) + delta).isoformat()
+
+
+# ── 关键词撤回（群消息命中即撤回，不阻塞事件）──
+
+@event_preprocessor
+async def _recall_keyword_preprocessor(event: Event, bot: Bot):
+    """检测群消息中的撤回关键词并调 QQ 接口撤回。
+
+    只处理普通群成员消息：bot 自己、群主/管理员、SUPERUSER 均跳过。
+    撤回失败（如 bot 非群管理员）仅记录日志，不影响消息后续处理。
+    注意：只能检测 QQ 推送过来的群消息；被动接收模式下平台只会推送 @bot 的消息。
+    """
+    if not isinstance(event, GroupMessageCreateEvent):
+        return
+
+    author = getattr(event, "author", None)
+    if getattr(author, "bot", False):
+        return
+    if _is_group_admin(event):
+        return
+
+    keywords = recall_repo.get_keywords(event.group_openid)
+    if not keywords:
+        return
+
+    text = event.get_message().extract_plain_text()
+    hit = _find_recall_keyword(keywords, text)
+    if not hit:
+        return
+
+    message_id = str(getattr(event, "id", "") or "")
+    if not message_id:
+        logger.warning(f"[群管] 消息缺少 id，无法撤回 gid={event.group_openid}")
+        return
+
+    try:
+        # QQ 官方 API：DELETE /v2/groups/{group_openid}/messages/{message_id}
+        await bot.delete_group_message(
+            group_openid=event.group_openid, message_id=message_id
+        )
+    except ActionFailed as e:
+        # 常见失败原因：bot 非群管理员 / 消息不存在 / 无权限撤回该成员
+        logger.warning(
+            f"[群管] 撤回失败 gid={event.group_openid} mid={message_id} "
+            f"keyword={hit!r}: code={e.code} message={e.message or '未知错误'}"
+        )
+        return
+    except Exception:
+        logger.exception(
+            f"[群管] 撤回异常 gid={event.group_openid} mid={message_id} keyword={hit!r}"
+        )
+        return
+
+    logger.info(
+        f"[群管] 已撤回群消息 gid={event.group_openid} mid={message_id} "
+        f"user={event.get_user_id()} keyword={hit!r}"
+    )
 
 
 # ── 入群欢迎（被动回复，自动带 event_id）──
@@ -160,6 +234,96 @@ async def _view_welcome(event: GroupMessageCreateEvent):
     text = (cfg.get("text") if cfg else None) or config.member_welcome_default_text
     kind = "自定义" if (cfg and cfg.get("text")) else "默认"
     await view_welcome.finish(f"当前欢迎语（{kind}）：\n{text}")
+
+
+# ── 群主/管理员：撤回关键词 设置 / 查看 / 删除 / 清空 ──
+
+set_recall_keywords = on_command(
+    "设置撤回关键词", rule=Rule(_is_group_msg), priority=config.command_priority
+)
+view_recall_keywords = on_command(
+    "查看撤回关键词", rule=Rule(_is_group_msg), priority=config.command_priority
+)
+del_recall_keywords = on_command(
+    "删除撤回关键词", rule=Rule(_is_group_msg), priority=config.command_priority
+)
+clear_recall_keywords = on_command(
+    "清空撤回关键词", rule=Rule(_is_group_msg), priority=config.command_priority
+)
+
+
+@set_recall_keywords.handle()
+async def _set_recall_keywords(
+    event: GroupMessageCreateEvent, arg: Message = CommandArg()
+):
+    if not _is_group_admin(event):
+        await set_recall_keywords.finish("仅群主或管理员可操作。")
+    raw = arg.extract_plain_text().strip()
+    if not raw:
+        await set_recall_keywords.finish(
+            "用法：/设置撤回关键词 关键词1 关键词2 ..."
+        )
+    recall_repo.set_keywords(event.group_openid, raw.split(), event.get_user_id())
+    keywords = recall_repo.get_keywords(event.group_openid)
+    await set_recall_keywords.finish(
+        f"已设置 {len(keywords)} 个撤回关键词：{'、'.join(keywords)}\n"
+        "群成员发送包含以上关键词的消息时，然然会自动撤回。\n"
+        "（该功能需要 Bot 为群管理员身份）"
+    )
+
+
+@view_recall_keywords.handle()
+async def _view_recall_keywords(event: GroupMessageCreateEvent):
+    if not _is_group_admin(event):
+        await view_recall_keywords.finish("仅群主或管理员可操作。")
+    keywords = recall_repo.get_keywords(event.group_openid)
+    if not keywords:
+        await view_recall_keywords.finish("本群尚未设置撤回关键词。")
+    await view_recall_keywords.finish(
+        f"当前共 {len(keywords)} 个撤回关键词：\n{'、'.join(keywords)}"
+    )
+
+
+@del_recall_keywords.handle()
+async def _del_recall_keywords(
+    event: GroupMessageCreateEvent, arg: Message = CommandArg()
+):
+    if not _is_group_admin(event):
+        await del_recall_keywords.finish("仅群主或管理员可操作。")
+    raw = arg.extract_plain_text().strip()
+    if not raw:
+        await del_recall_keywords.finish(
+            "用法：/删除撤回关键词 关键词1 关键词2 ...（可用 /清空撤回关键词 一次性移除全部）"
+        )
+    words = raw.split()
+    current = recall_repo.get_keywords(event.group_openid)
+    if not current:
+        await del_recall_keywords.finish("本群尚未设置撤回关键词。")
+        return
+    lowers = {w.lower() for w in words}
+    removed = [w for w in current if w.lower() in lowers]
+    if not removed:
+        await del_recall_keywords.finish(
+            f"以下关键词不在列表中：{'、'.join(words)}\n"
+            f"当前关键词：{'、'.join(current)}"
+        )
+        return
+    recall_repo.remove_keywords(event.group_openid, words, event.get_user_id())
+    kept = recall_repo.get_keywords(event.group_openid)
+    suffix = f"当前剩余 {len(kept)} 个：{'、'.join(kept)}" if kept else "当前已无撤回关键词。"
+    await del_recall_keywords.finish(
+        f"已删除 {len(removed)} 个关键词：{'、'.join(removed)}\n{suffix}"
+    )
+
+
+@clear_recall_keywords.handle()
+async def _clear_recall_keywords(event: GroupMessageCreateEvent):
+    if not _is_group_admin(event):
+        await clear_recall_keywords.finish("仅群主或管理员可操作。")
+    if not recall_repo.get_keywords(event.group_openid):
+        await clear_recall_keywords.finish("本群尚未设置撤回关键词。")
+    recall_repo.clear_keywords(event.group_openid, event.get_user_id())
+    await clear_recall_keywords.finish("已清空全部撤回关键词。")
 
 
 # ── SUPERUSER：审核自定义欢迎语（C2C 按钮注入或手动）──

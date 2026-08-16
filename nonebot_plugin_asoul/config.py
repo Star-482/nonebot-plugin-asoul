@@ -87,7 +87,7 @@ class Config(BaseModel):
     # 总开关：默认开
     member_welcome_enabled: bool = True
     # 默认欢迎语（群未自定义或审核被拒回退时使用）
-    member_welcome_default_text: str = "欢迎加入本群～我是嘉然 Diana，@我可以玩哦"
+    member_welcome_default_text: str = "欢迎加入本群～我是嘉然 Diana"
 
 
 config = get_plugin_config(Config)
