@@ -142,6 +142,9 @@ BTN_SUBMIT = link_button("submit", "点我投稿", URL_SUBMIT)
 BTN_GROUP = link_button("group", "交流群", URL_GROUP)
 BTN_LIVE_DATA = link_button("live_goto", "查看数据", URL_LIVE_DATA)
 
+# ── 通用指令按钮 ──
+BTN_MENU = command_button("menu", "菜单", "/关于小然")
+
 
 # ══════════════════ 指令文字链定义（不占按钮额度的指令嵌入） ══════════════════
 
@@ -159,7 +162,7 @@ TC_PLAY = text_chain("/玩 连连看", "玩耍")
 TC_INTERACT = text_chain("/互动 摸摸头", "互动")
 TC_SUBSCRIBE = text_chain("/订阅开播", "订阅开播")
 TC_SCHEDULE = text_chain("/本周日程", "本周日程")
-TC_DISABLE_WELCOME = text_chain("/关闭欢迎语", "关闭入群欢迎")
+TC_DISABLE_WELCOME = text_chain("/关闭欢迎语", "关闭欢迎")
 TC_SET_WELCOME = text_chain("/设置欢迎语 ", "设置欢迎语")
 
 
@@ -294,17 +297,19 @@ def get_welcome_review_md(review: dict) -> Message:
     return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)
 
 
-def get_member_welcome_md(text: str, member_openid: str) -> MessageSegment:
-    """新成员入群欢迎消息（markdown）。
+def get_member_welcome_md(text: str, member_openid: str) -> Message:
+    """新成员入群欢迎消息（markdown + 键盘）。
 
     text 为本群当前欢迎语（自定义或默认）；member_openid 为新成员 openid，用于 @。
     正文内嵌两条指令文字链（关闭入群欢迎 / 设置欢迎语），非按钮、不占按钮额度。
+    按钮区挂"使用说明"（外链）+ "菜单"（注入 /关于小然）两个按钮。
     """
     content = (
-        f"🎉 欢迎新成员<@{member_openid}>\n\n{text}\n\n"
+        f"🎉 欢迎新成员<qqbot-at-user id=\"{member_openid}\" />\n\n{text}\n\n"
         f"> 群管操作：{TC_DISABLE_WELCOME} · {TC_SET_WELCOME}"
     )
-    return MessageSegment.markdown(content)
+    keyboard = build_keyboard([[BTN_USAGE_DOC, BTN_MENU]])
+    return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)
 
 
 def _trend_md(value: str) -> str:

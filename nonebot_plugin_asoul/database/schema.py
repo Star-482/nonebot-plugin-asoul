@@ -78,6 +78,14 @@ CREATE TABLE IF NOT EXISTS group_welcome (
     updated_by TEXT                        -- 最后操作者 openid（群管或审核 SUPERUSER）
 );
 
+-- 每群关键词撤回配置（群主/管理员通过 /设置撤回关键词 维护）
+CREATE TABLE IF NOT EXISTS group_recall_keywords (
+    group_openid TEXT PRIMARY KEY,
+    keywords TEXT NOT NULL,                -- JSON 数组，命中的群消息会被撤回
+    updated_at TEXT NOT NULL,
+    updated_by TEXT                        -- 最后操作者 openid
+);
+
 -- 自定义欢迎语审核流水
 CREATE TABLE IF NOT EXISTS welcome_reviews (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
