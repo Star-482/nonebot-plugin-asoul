@@ -15,7 +15,7 @@ from nonebot.adapters import Event
 from nonebot.adapters.qq import Message, MessageSegment
 from nonebot.plugin.on import on_command
 
-from ..markdown import BTN_FORTUNE_DRAW, build_keyboard
+from ..markdown import BTN_FORTUNE_DRAW, BTN_MENU, BTN_WIFE, build_keyboard
 from ..utils import open_json, drawing, pick_fortune_base, drawing_to_bytes
 from ..config import config
 from ..storage import get_bucket, KEY_PREFIX, manifest, _recipe_hash
@@ -105,7 +105,10 @@ def build_fortune_md(result: dict, uid: str) -> Message:
             result["url"], result.get("w", 420), result.get("h", 420), result.get("title", "")
         )
         md = f"<@{uid}>\n### ✨今日运势✨\n\n{md_img}"
-        keyboard = build_keyboard([[BTN_FORTUNE_DRAW]])
+        keyboard = build_keyboard([
+            [BTN_WIFE, BTN_MENU],
+            [BTN_FORTUNE_DRAW],
+        ])
         return MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard)
     else:
         img_path = Path(result["img_path"])

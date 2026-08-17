@@ -11,7 +11,7 @@ from nonebot.adapters.qq import MessageSegment
 from nonebot.plugin.on import on_command
 
 from ..config import config
-from ..markdown import BTN_QUOTATION_AGAIN, URL_SUBMIT, build_keyboard
+from ..markdown import BTN_PIXEL_BOARD, BTN_QUOTATION_AGAIN, URL_SUBMIT, build_keyboard
 from ..utils import open_json
 
 my_openid = on_command("我的id", priority=config.command_priority)
@@ -36,5 +36,5 @@ async def _():
     quoted = "\n".join(f"> {line}" if line else ">" for line in content.split("\n"))
     submission_note = f"🏷️用户投稿 | 投稿人：{submitter}\n\n" if submitter else ""
     md = f"## {title}\n\n{quoted}\n\n\n{submission_note}你也想发病？[点我投稿]({URL_SUBMIT}) 分享你的小作文吧~"
-    keyboard = build_keyboard([[BTN_QUOTATION_AGAIN]])
+    keyboard = build_keyboard([[BTN_QUOTATION_AGAIN, BTN_PIXEL_BOARD]])
     await quotation.finish(MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard))

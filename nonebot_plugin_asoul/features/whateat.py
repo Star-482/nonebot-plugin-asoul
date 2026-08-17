@@ -18,7 +18,14 @@ from nonebot.adapters.qq import Message, MessageSegment
 from nonebot.plugin.on import on_command
 
 from ..config import config
-from ..markdown import BTN_DRINK_AGAIN, BTN_EAT_AGAIN, URL_SUBMIT, build_keyboard
+from ..markdown import (
+    BTN_DRINK_AGAIN,
+    BTN_EAT_AGAIN,
+    BTN_MENU,
+    BTN_QUOTATION,
+    URL_SUBMIT,
+    build_keyboard,
+)
 from ..storage import get_bucket, KEY_PREFIX, manifest
 
 NICKNAME = list(get_driver().config.nickname)
@@ -147,7 +154,8 @@ async def build_whateat_msg(menu_type: Literal["drink", "eat"], action_verb: str
             submission_note = "\n"
         md = f"### 🎉{BOT_NAME}建议你{action_verb}🎉\n\n**{pic_name}**\n\n{submission_note}{md_img}\n\n\n没有心仪的{food_word}？[点击投稿]({URL_SUBMIT})"
         keyboard = build_keyboard([
-            [BTN_EAT_AGAIN if menu_type == "eat" else BTN_DRINK_AGAIN]
+            [BTN_QUOTATION, BTN_MENU],
+            [BTN_EAT_AGAIN if menu_type == "eat" else BTN_DRINK_AGAIN],
         ])
         return MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard)
     else:

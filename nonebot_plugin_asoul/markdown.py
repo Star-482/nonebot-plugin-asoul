@@ -138,12 +138,15 @@ BTN_DIANA_DAILY = command_button("diana_nav_daily", "日常", "/然然帮助 日
 
 # ── 外链按钮 ──
 BTN_USAGE_DOC = link_button("introduce", "使用说明", URL_USAGE_DOC)
-BTN_SUBMIT = link_button("submit", "点我投稿", URL_SUBMIT)
+BTN_SUBMIT = link_button("submit", "投稿", URL_SUBMIT)
 BTN_GROUP = link_button("group", "交流群", URL_GROUP)
-BTN_LIVE_DATA = link_button("live_goto", "查看数据", URL_LIVE_DATA)
+BTN_PIXEL_BOARD = link_button("pixel_board", "像素画板", URL_PIXEL_BOARD)
 
 # ── 通用指令按钮 ──
 BTN_MENU = command_button("menu", "菜单", "/关于小然")
+# 高频消息第二行引流按钮（插入式，不误触发送）
+BTN_FORTUNE = command_button("fortune", "今日运势", "/今日运势")
+BTN_WIFE = command_button("wife", "抽老婆", "/抽老婆")
 
 
 # ══════════════════ 指令文字链定义（不占按钮额度的指令嵌入） ══════════════════
@@ -162,6 +165,17 @@ TC_PLAY = text_chain("/玩 连连看", "玩耍")
 TC_INTERACT = text_chain("/互动 摸摸头", "互动")
 TC_SUBSCRIBE = text_chain("/订阅开播", "订阅开播")
 TC_SCHEDULE = text_chain("/本周日程", "本周日程")
+TC_FAN_STATS = text_chain("/粉丝数据", "粉丝数据")
+TC_WORK = text_chain("/打工", "打工")
+TC_WELCOME_ON = text_chain("/开启欢迎语", "开启欢迎")
+TC_VIEW_WELCOME = text_chain("/查看欢迎语", "查看欢迎语")
+TC_RECALL_SET = text_chain("/设置撤回关键词", "设置关键词")
+TC_RECALL_VIEW = text_chain("/查看撤回关键词", "查看关键词")
+TC_RECALL_DEL = text_chain("/删除撤回关键词", "删除关键词")
+TC_RECALL_CLEAR = text_chain("/清空撤回关键词", "清空关键词")
+TC_MUTE = text_chain("/禁言", "禁言")
+TC_UNMUTE = text_chain("/解禁", "解禁")
+TC_GROUP_ADMIN_HELP = text_chain("/群管帮助", "群管帮助")
 TC_DISABLE_WELCOME = text_chain("/关闭欢迎语", "关闭欢迎")
 TC_SET_WELCOME = text_chain("/设置欢迎语 ", "设置欢迎语")
 
@@ -184,6 +198,11 @@ KB_DIANA_NAV = build_keyboard([
 def live_go_button(url: str) -> Button:
     """去直播间跳转按钮，url 每次直播动态变化。"""
     return link_button("live_goto", "去直播间", url)
+
+
+def live_session_button(session_id: int) -> Button:
+    """直播数据站会话页跳转按钮，session_id 每次下播动态变化。"""
+    return link_button("live_session", "查看数据", f"{URL_LIVE_DATA}/session/{session_id}")
 
 
 def welcome_review_button(action: Literal["approve", "reject"], rid) -> Button:
@@ -221,22 +240,24 @@ def get_test_markdown():
 
 
 def _xiaoran_command_center_content() -> str:
-    """指令中心正文：嘉然立绘 + 标题 + 全部指令文字链。供 about_xiaoran / welcome 复用。"""
+    """指令中心正文：嘉然立绘 + 二级标题 + 各模块指令文字链（模块名加黑）。
+    供 about_xiaoran / welcome 复用。"""
     return (
         "![嘉然 Diana #1053px #432px](https://img.cdn1.vip/i/6a04661d8253e_1778673181.png)\n\n"
-        "# 📋 小然指令中心\n"
-        "嘉然 Diana 的 QQ 群小助手，点一下就能玩～\n\n"
-        "## 🍀 每日一抽\n"
-        f"{TC_FORTUNE} · {TC_WIFE}\n\n"
-        "## 🍱 干饭发病\n"
-        f"{TC_EAT} · {TC_DRINK} · {TC_QUOTATION}\n\n"
-        "## 🎮 养然然\n"
-        f"{TC_CHECKIN} · {TC_STATUS} · {TC_COSTUME} · {TC_HELP}\n"
-        f"互动示例：{TC_FEED} · {TC_PLAY} · {TC_INTERACT}\n\n"
-        "## 📺 日程订阅\n"
-        f"{TC_SUBSCRIBE} · {TC_SCHEDULE}\n\n"
-        "## 🎨 二创和数据站\n"
-        f"[A手像素画板]({URL_PIXEL_BOARD}) · [直播数据站]({URL_LIVE_DATA})\n\n"
+        "## 📋 小然指令中心\n"
+        "嘉然 Diana 的 QQ 群小助手\n\n"
+        "**🎮 娱乐功能**\n"
+        f">{TC_FORTUNE} · {TC_WIFE} · {TC_EAT} · {TC_DRINK} · {TC_QUOTATION}\n\n"
+        "**🐣 养然然**\n"
+        f">{TC_CHECKIN} · {TC_STATUS} · {TC_COSTUME} · {TC_HELP}\n"
+        f">日常互动：{TC_FEED} · {TC_PLAY} · {TC_WORK} · {TC_INTERACT}\n\n"
+        "**📺 直播相关**\n"
+        f">{TC_SUBSCRIBE} · {TC_FAN_STATS} · {TC_SCHEDULE}\n\n"
+        "**🛡️ 群管**（群主/管理员）\n"
+        ">入群欢迎语 · 关键词撤回 · 禁言\n"
+        f">{TC_GROUP_ADMIN_HELP}\n\n"
+        "**🎨 二创和数据站**\n"
+        f">[A手像素画板]({URL_PIXEL_BOARD}) · [直播数据站]({URL_LIVE_DATA})\n\n"
         "更多说明见下方链接～\n"
     )
 
@@ -247,6 +268,27 @@ def get_about_xiaoran_markdown() -> Message:
         MessageSegment.markdown(_xiaoran_command_center_content())
         + MessageSegment.keyboard(KB_COMMAND_CENTER)
     )
+
+
+def get_group_admin_help_md() -> Message:
+    """群管帮助：欢迎语 / 撤回关键词 / 成员管理三类指令详情（/群管帮助）。
+
+    正文用指令文字链铺开，不占按钮额度；键盘挂"菜单"按钮跳回指令中心。
+    """
+    content = (
+        "## 🛡️ 群管指令\n\n"
+        "以下指令仅群主 / 管理员可用（撤回需 Bot 为群管理员）。\n\n"
+        "**🎉 入群欢迎语**\n"
+        f"{TC_WELCOME_ON} · {TC_DISABLE_WELCOME} · {TC_VIEW_WELCOME} · {TC_SET_WELCOME}\n"
+        "**🔍 撤回关键词**\n"
+        f"{TC_RECALL_VIEW} · {TC_RECALL_SET} · {TC_RECALL_DEL} · {TC_RECALL_CLEAR}\n"
+        "> 设置格式：/设置撤回关键词 词1 词2 ...，群成员消息命中即撤回。\n\n"
+        "**🔇 成员管理**\n"
+        f"{TC_MUTE} · {TC_UNMUTE}\n"
+        "> 用法：/禁言 @成员 时长（30m/2h/1d/7d，默认 15 分钟）；/解禁 @成员。\n"
+    )
+    keyboard = build_keyboard([[BTN_MENU]])
+    return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)
 
 
 def get_welcome_markdown(scene: str) -> Message:
@@ -301,12 +343,12 @@ def get_member_welcome_md(text: str, member_openid: str) -> Message:
     """新成员入群欢迎消息（markdown + 键盘）。
 
     text 为本群当前欢迎语（自定义或默认）；member_openid 为新成员 openid，用于 @。
-    正文内嵌两条指令文字链（关闭入群欢迎 / 设置欢迎语），非按钮、不占按钮额度。
+    正文内嵌两条指令文字链（关闭入群欢迎 / 设置欢迎语 / 群管帮助），非按钮、不占按钮额度。
     按钮区挂"使用说明"（外链）+ "菜单"（注入 /关于小然）两个按钮。
     """
     content = (
         f"🎉 欢迎新成员<qqbot-at-user id=\"{member_openid}\" />\n\n{text}\n\n"
-        f"> 群管操作：{TC_DISABLE_WELCOME} · {TC_SET_WELCOME}"
+        f"> 群管操作：{TC_DISABLE_WELCOME} · {TC_SET_WELCOME} · {TC_GROUP_ADMIN_HELP}"
     )
     keyboard = build_keyboard([[BTN_USAGE_DOC, BTN_MENU]])
     return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)

@@ -17,7 +17,13 @@ from .api import LiveInfo
 from .manager import manager
 from ..manage.relationships import relations
 from .session import poll_session_id, screenshot_session_page
-from ..markdown import BTN_LIVE_DATA, URL_LIVE_DATA, build_keyboard, live_go_button
+from ..markdown import (
+    BTN_PIXEL_BOARD,
+    TC_FAN_STATS,
+    build_keyboard,
+    live_go_button,
+    live_session_button,
+)
 from ..storage import get_bucket, KEY_PREFIX
 
 
@@ -221,10 +227,10 @@ class Notifier:
             f"## {uname} 下播了\n\n"
             f"**{old_info.title}** 直播已结束\n\n"
             f"{md_img}\n\n"
-            f"[查看完整数据]({URL_LIVE_DATA})"
+            f"今日数据：{TC_FAN_STATS}"
         )
 
-        keyboard = build_keyboard([[BTN_LIVE_DATA]])
+        keyboard = build_keyboard([[live_session_button(session_id), BTN_PIXEL_BOARD]])
         message = MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard)
 
         await asyncio.gather(
