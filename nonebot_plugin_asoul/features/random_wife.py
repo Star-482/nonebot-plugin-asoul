@@ -13,7 +13,7 @@ from nonebot.adapters.qq import MessageSegment
 from nonebot.plugin.on import on_command
 
 from ..config import config
-from ..markdown import BTN_WIFE_AGAIN, URL_SUBMIT, build_keyboard
+from ..markdown import BTN_FORTUNE, BTN_MENU, BTN_WIFE_AGAIN, URL_SUBMIT, build_keyboard
 from ..storage import get_bucket, KEY_PREFIX, manifest
 
 
@@ -111,7 +111,10 @@ async def get_random_wife_md_message():
         f"添加喜欢的角色[【点击投稿】]({URL_SUBMIT})"
     )
 
-    keyboard = build_keyboard([[BTN_WIFE_AGAIN]])
+    keyboard = build_keyboard([
+        [BTN_FORTUNE, BTN_MENU],
+        [BTN_WIFE_AGAIN],
+    ])
 
     return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)
 

@@ -30,7 +30,11 @@ from nonebot.rule import Rule
 from ..config import config
 from ..database.repositories import GroupRecallRepo, GroupWelcomeRepo, WelcomeReviewRepo
 from ..manage.qq_api import set_group_member_mute
-from ..markdown import get_member_welcome_md, get_welcome_review_md
+from ..markdown import (
+    get_group_admin_help_md,
+    get_member_welcome_md,
+    get_welcome_review_md,
+)
 
 _TZ = timezone(timedelta(hours=8))
 
@@ -324,6 +328,16 @@ async def _clear_recall_keywords(event: GroupMessageCreateEvent):
         await clear_recall_keywords.finish("本群尚未设置撤回关键词。")
     recall_repo.clear_keywords(event.group_openid, event.get_user_id())
     await clear_recall_keywords.finish("已清空全部撤回关键词。")
+
+
+# ── 群管帮助（指令中心群管模块的详情页）──
+
+group_admin_help = on_command("群管帮助", priority=config.command_priority)
+
+
+@group_admin_help.handle()
+async def _group_admin_help():
+    await group_admin_help.finish(get_group_admin_help_md())
 
 
 # ── SUPERUSER：审核自定义欢迎语（C2C 按钮注入或手动）──
