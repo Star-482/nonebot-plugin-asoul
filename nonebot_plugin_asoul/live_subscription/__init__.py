@@ -18,9 +18,10 @@ from .notifier import Notifier
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
-_api = BiliLiveAPI()
+# 公开共享的 B站直播 API 实例（agent 工具等复用，勿另建连接）
+bili_api = BiliLiveAPI()
 _notifier = Notifier()
-_checker = LiveChecker(_api, _notifier)
+_checker = LiveChecker(bili_api, _notifier)
 
 
 async def _poll():
@@ -48,7 +49,7 @@ driver = get_driver()
 
 @driver.on_shutdown
 async def _shutdown():
-    await _api.close()
+    await bili_api.close()
     logger.info("开播轮询已关闭")
 
 
