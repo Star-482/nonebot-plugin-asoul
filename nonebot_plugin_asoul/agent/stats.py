@@ -48,19 +48,28 @@ def record_usage(
     prompt_tokens: int = 0,
     completion_tokens: int = 0,
     total_tokens: int = 0,
+    vision_calls: int = 0,
 ) -> None:
-    """记录一次对话的调用次数与 token 消耗（按天聚合，线程安全）。"""
+    """记录一次对话的调用次数与 token 消耗（按天聚合，线程安全）。
+    vision_calls 单列视觉模型调用次数（其 token 不计入主模型三段，仅计数便于观察用量）。"""
     today = datetime.date.today().isoformat()
     with _lock:
         data = _load()
         day = data.setdefault(
             today,
-            {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            {
+                "calls": 0,
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "vision_calls": 0,
+            },
         )
         day["calls"] += calls
         day["prompt_tokens"] += prompt_tokens
         day["completion_tokens"] += completion_tokens
         day["total_tokens"] += total_tokens
+        day["vision_calls"] = day.get("vision_calls", 0) + vision_calls
         _save(data)
 
 

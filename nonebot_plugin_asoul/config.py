@@ -66,6 +66,12 @@ class Config(BaseModel):
     agent_plugin_doc_path: str = "agent/plugin_doc.md"
     # 关键记忆 md，相对 data_path；全量注入 system prompt（lookup_memories 工具可精确检索同一份）
     agent_memories_path: str = "agent/memories.md"
+    # ── Agent 视觉（用户发图 -> 视觉模型转文字描述并入对话，OpenAI 兼容多模态 API）──
+    # 总开关：默认关；需另配视觉模型（DeepSeek 主模型无 vision 能力）
+    agent_vision_enabled: bool = False
+    agent_vision_model: str = ""       # 如 qwen-vl-plus / glm-4v-flash / gpt-4o-mini
+    agent_vision_base_url: str = ""    # 空 = 复用 agent_base_url（视觉与主模型同供应商时方便）
+    agent_vision_api_key: str = ""     # 空 = 复用 agent_api_key
 
     # ── 消息审核（捕获所有入/出站消息，SQLite 存储 + REST/WS 推送给外部仿 QQ 客户端）──
     # 总开关：默认关，开发审核工具，按需在 .env 开启

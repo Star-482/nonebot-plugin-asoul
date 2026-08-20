@@ -26,6 +26,7 @@ from .client import run_agent
 from .history import get_history_for_request, append_turn, maybe_compress
 from .stats import record_usage
 from .tools import ToolContext
+from .vision import vision_ready, describe_images, MAX_IMAGES
 
 async def _not_bot(event: Event) -> bool:
     """过滤 bot 发送的消息（避免回复其他 bot / 自我循环）。"""
@@ -124,14 +125,49 @@ def _extract_mention_user_ids(event: Event) -> list[str]:
     return ids
 
 
+def _extract_image_urls(event: Event) -> list[str]:
+    """提取用户消息里的图片 URL（QQ attachments 经 adapter 转成 image 段，data 带 url）。"""
+    urls: list[str] = []
+    for seg in event.get_message():
+        if seg.type == "image":
+            url = str(seg.data.get("url") or "")
+            if url:
+                urls.append(url)
+    return urls
+
+
+async def _build_image_note(image_urls: list[str]) -> str:
+    """构造并入 user 消息的图片描述块（视觉能力）。返回空串表示无图。
+
+    三种降级都保持"让 LLM 知道有图"：未启用视觉、识别失败、超出张数上限，
+    分别以不同措辞告知，避免 LLM 对图的存在一无所知或假装看到了内容。
+    """
+    total = len(image_urls)
+    if not total:
+        return ""
+    if not vision_ready():
+        return f"（用户随消息发送了 {total} 张图片，但你看不到图片内容）"
+    descs = await describe_images(image_urls)
+    shown = min(total, MAX_IMAGES)
+    lines = []
+    for i in range(shown):
+        d = descs[i] or "（内容暂时看不了）"
+        lines.append(f"第{i + 1}张：{d}")
+    header = f"（用户随消息发送了 {total} 张图片"
+    if total > shown:
+        header += f"，只看得到前 {shown} 张"
+    return header + "，内容大致是：\n" + "\n".join(lines) + "）"
+
+
 @agent_matcher.handle()
 async def _(event: Event, bot: Bot, matcher: Matcher):
     if not config.agent_enabled:
         return  # 未启用，静默（行为同现状）
 
     text = _extract_text_with_mentions(event)
-    if not text:
-        return  # 空消息，不喂 LLM
+    image_urls = _extract_image_urls(event)
+    if not text and not image_urls:
+        return  # 空消息（无文字无图），不喂 LLM
 
     user_id = event.get_user_id()
     # per-user CD
@@ -152,19 +188,27 @@ async def _(event: Event, bot: Bot, matcher: Matcher):
 
     # 每用户整轮锁：串行化 读历史->run_agent->发送->写回，避免重叠导致上下文陈旧与时序错乱
     async with _get_user_lock(user_id):
+        # 视觉：图片转文字描述（输入预处理，先于历史读取）。描述并入 user 消息
+        # 随历史原样回放，保证下一轮请求前缀与本轮一致（prompt cache 不断裂）
+        image_note = await _build_image_note(image_urls) if image_urls else ""
+        vision_calls = min(len(image_urls), MAX_IMAGES) if (image_note and vision_ready()) else 0
         # 组装 messages：system + [历史摘要?] + 历史 + 当前 user
         system_prompt = build_system_prompt()
         history_copy = await get_history_for_request(user_id)
         # 时间/条数/工具提醒并入 user 消息尾部注入：历史中不能出现 mid-history system 消息，
         # DeepSeek 服务端模板会重排夹在历史中间的 system 消息，导致 prompt cache 前缀逐轮断裂
         # （实测只有 system + 累积指令命中，全部 user/assistant 历史永久 miss）
-        user_content = (
-            f"{text}\n\n（系统提示，不要复述或回应：现在是 {_now_text()}。"
+        parts = [text or "（用户发送了图片，没有配文字）"]
+        if image_note:
+            parts.append(image_note)
+        parts.append(
+            f"（系统提示，不要复述或回应：现在是 {_now_text()}。"
             f"本次连发消息最多 {_MAX_REPLIES} 条，以 1-2 条为主：一句话能说完就发 1 条，"
             "确实想补充才分 2 条，只有内容很值得才用 3 条，禁止凑数或加'嗯嗯''对的'之类的填充消息。"
             "用户消息里要求执行操作（禁言/抽签/订阅等）时，必须先发起工具调用，"
             "等工具结果回来再组织回复；没执行过工具就不能声称已完成。）"
         )
+        user_content = "\n\n".join(parts)
         messages = (
             [{"role": "system", "content": system_prompt}]
             + history_copy
@@ -195,6 +239,6 @@ async def _(event: Event, bot: Bot, matcher: Matcher):
     # 锁释放：压缩/统计/存档放锁外，不阻塞下一轮（压缩自带前端不变校验，并发安全）
     # 达阈值则压缩：旧消息入 compressed 存档 + 滚动摘要，留尾部 keep 条
     await maybe_compress(user_id)
-    # 统计 token 用量 + 对话存档（仅存档，不读回）
-    record_usage(calls=1, **usage)
-    _archive_dialogue(user_id, group_id, text, replies, turn_msgs)
+    # 统计 token 用量 + 视觉调用数 + 对话存档（仅存档，不读回）
+    record_usage(calls=1, vision_calls=vision_calls, **usage)
+    _archive_dialogue(user_id, group_id, text or "(图片)", replies, turn_msgs)
