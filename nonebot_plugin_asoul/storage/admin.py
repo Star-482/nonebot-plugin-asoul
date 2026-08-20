@@ -33,6 +33,8 @@ def _local_root_for_prefix(prefix: str) -> Path | None:
         "static/wife": data_root / config.wife_img_dir,
         "static/fortune/base": data_root / "resource" / "img" / "asoul",
         "static/ui": data_root / "ui",
+        "static/agent/sticker": data_root / "agent" / "stickers",
+        "static/agent/image": data_root / "agent" / "images",
     }
     return mapping.get(prefix)
 
@@ -42,6 +44,8 @@ _DEFAULT_SYNC_PREFIXES = [
     "static/whateat/eat",
     "static/whateat/drink",
     "static/wife",
+    "static/agent/sticker",
+    "static/agent/image",
 ]
 
 _SUPPORTED_IMG_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
@@ -51,6 +55,18 @@ def _iter_images(root: Path) -> Iterable[Path]:
     if not root.exists():
         return []
     return [p for p in sorted(root.iterdir()) if p.is_file() and p.suffix.lower() in _SUPPORTED_IMG_EXT]
+
+
+def _iter_images_with_prefix(root: Path, prefix: str) -> Iterable[tuple[Path, str]]:
+    """展开 (图片, 实际 COS 前缀)：库根文件用 prefix，一级子目录文件用 prefix/子目录名
+    （agent 图片库的分类目录布局）。"""
+    if not root.exists():
+        return []
+    pairs: list[tuple[Path, str]] = [(p, prefix) for p in _iter_images(root)]
+    for sub in sorted(root.iterdir()):
+        if sub.is_dir():
+            pairs.extend((p, f"{prefix}/{sub.name}") for p in _iter_images(sub))
+    return pairs
 
 
 # ── 命令注册 ──
@@ -114,9 +130,9 @@ async def _(arg: Message = CommandArg()):
             continue
 
         ok = skip = fail = 0
-        for img in _iter_images(root):
-            cached_before = manifest.get_static(f"{prefix}/{img.name}")
-            url = await bucket.get_or_upload_file(img, prefix=prefix)
+        for img, file_prefix in _iter_images_with_prefix(root, prefix):
+            cached_before = manifest.get_static(f"{file_prefix}/{img.name}")
+            url = await bucket.get_or_upload_file(img, prefix=file_prefix)
             if url is None:
                 fail += 1
             elif cached_before and cached_before.get("url") == url:

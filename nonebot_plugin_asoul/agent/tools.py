@@ -16,6 +16,7 @@ from nonebot.log import logger
 
 from ..config import config
 from ..utils import open_json
+from .media import sticker_library, image_library
 from ..features import (
     fortune_manager,
     build_fortune_md,
@@ -669,3 +670,64 @@ async def _lookup_memories(args: dict, ctx: ToolContext) -> ToolResult:
     scored.sort(key=lambda x: -x[0])
     picked = _pick_capped(scored, max_entries=40, max_chars=3500)
     return ToolResult(text="相关记忆（按相关度排序，可能不全）：\n" + "\n".join(picked))
+
+
+# ── 表情包 / 图片库工具 ──
+
+def _tags_hint(lib) -> str:
+    """工具描述里附上当前可用标签（import 时生成；标签变动重启后更新，未命中时工具会现场提示）。"""
+    tags = lib.tags()
+    return "、".join(tags[:40]) if tags else "（库暂时为空）"
+
+
+@register_tool(
+    "send_sticker",
+    "发送一个表情包来表达情绪，会作为单独的图片消息紧跟在你的文字回复后到达。"
+    f"tag 传情绪/场景关键词，可用标签：{_tags_hint(sticker_library)}。"
+    "传错了会提示全部可用标签。",
+    {
+        "type": "object",
+        "properties": {
+            "tag": {"type": "string", "description": "情绪/场景关键词，如 开心、无语、哭、吃"}
+        },
+        "required": ["tag"],
+    },
+)
+async def _send_sticker(args: dict, ctx: ToolContext) -> ToolResult:
+    tag = str(args.get("tag", "")).strip()
+    item = sticker_library.pick(tag)
+    if item is None:
+        tags = sticker_library.tags()
+        if not tags:
+            return ToolResult(text="表情包库还是空的，发不了。")
+        return ToolResult(text=f"没有匹配「{tag}」的表情包。可用标签：" + "、".join(tags))
+    seg = await sticker_library.build_segment(item)
+    if seg is None:
+        return ToolResult(text="表情包发送失败了（图片读取/上传出错），换个说法继续聊就行。")
+    return ToolResult(text=f"已发送表情包「{item.path.stem}」。", attachments=[seg])
+
+
+@register_tool(
+    "send_image",
+    "从图片库发送一张主题图片（会作为单独的图片消息到达）。query 传主题/分类关键词，"
+    f"可用关键词：{_tags_hint(image_library)}。传错了会提示全部可用关键词。",
+    {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "主题/分类关键词，如 壁纸、美图、梗图"}
+        },
+        "required": ["query"],
+    },
+)
+async def _send_image(args: dict, ctx: ToolContext) -> ToolResult:
+    query = str(args.get("query", "")).strip()
+    item = image_library.pick(query)
+    if item is None:
+        tags = image_library.tags()
+        if not tags:
+            return ToolResult(text="图片库还是空的，发不了。")
+        return ToolResult(text=f"没有匹配「{query}」的图片。可用关键词：" + "、".join(tags))
+    seg = await image_library.build_segment(item)
+    if seg is None:
+        return ToolResult(text="图片发送失败了（图片读取/上传出错），换个说法继续聊就行。")
+    return ToolResult(text=f"已发送图片「{item.path.stem}」。", attachments=[seg])

@@ -26,6 +26,8 @@ KEY_PREFIX = {
     "activity": "static/activity",
     "ui": "static/ui",
     "live_session": "static/live_session",
+    "agent_sticker": "static/agent/sticker",
+    "agent_image": "static/agent/image",
     # addressed 段：按 recipe 哈希 key
     "addressed_fortune": "addressed/fortune",
     "addressed_diana_interaction": "addressed/diana/interaction",
