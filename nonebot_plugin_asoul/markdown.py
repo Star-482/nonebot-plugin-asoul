@@ -22,6 +22,8 @@ from nonebot.adapters.qq.models import (
     RenderData,
 )
 
+from .storage import KEY_PREFIX, manifest
+
 # ── 常用外链常量（统一管理，避免各模块手写 URL）──
 URL_USAGE_DOC = "https://docs.qq.com/doc/DRkFEbEhoa1Jzc05r"     # 使用说明
 URL_SUBMIT = "https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ"  # 点我投稿
@@ -101,6 +103,29 @@ def build_keyboard(rows: list[list[Button]]) -> MessageKeyboard:
     )
 
 
+# ── md 小图标 ──
+
+def icon(name: str, size: int = 20) -> str:
+    """返回 md 图片字面量（同步读 manifest，零网络）。
+
+    name 为 data/asoul/ui/icons/ 下的文件名（含扩展名），图标需先经
+    /图床同步 static/ui/icon 上传进 manifest（懒上传也会写入）。
+    未上传/未同步返回空串——调用方用 `icon(...) or 'emoji'` 回退到 emoji，
+    保证图标缺失时消息不坏、语义不丢。非方图按 manifest 宽高保持纵横比。
+    """
+    key = f"{KEY_PREFIX['ui']}/icon/{name}"
+    entry = manifest.get_static(key)
+    if not entry or not entry.get("url"):
+        return ""
+    w = entry.get("width") or 0
+    h = entry.get("height") or 0
+    if w and h and w != h:
+        h = round(size * h / w)
+    else:
+        h = size
+    return f"![{name} #{size}px #{h}px]({entry['url']})"
+
+
 def text_chain(text: str, show: str = "") -> str:
     """QQ markdown 文字链（指令操作-参数指令）：点击后将 text 插入输入框，展示 show。
 
@@ -119,6 +144,7 @@ def text_chain(text: str, show: str = "") -> str:
 
 # ── 通用功能按钮 ──
 BTN_TEST_MARKDOWN = command_button("test_markdown", "再测一次", "/测试markdown")
+BTN_ICON_TEST = command_button("test_icon", "图标再测", "/测试图标")
 BTN_QUOTATION = command_button("quotation", "发病一下", "/发病小作文")
 BTN_FORTUNE_DRAW = command_button("fortune_draw", "我也要抽签", "/今日运势")
 BTN_WIFE_AGAIN = command_button("wife_again", "再抽老婆", "/抽老婆")
@@ -226,6 +252,87 @@ def live_sub_all_button(names: list[str], prefix: str = "/订阅开播") -> Butt
 
 # ══════════════════ 完整 md 消息构造函数 ══════════════════
 
+async def get_icon_test_markdown() -> Message | MessageSegment:
+    """图标渲染可行性测试：表情原图在 md 各元素中以小尺寸显示的表现。
+
+    素材用表情包原图（data/asoul/ui/icons/，不做缩放），显示尺寸完全由 md
+    图片语法（#Wpx #Hpx）控制--单一素材源、多档显示。懒上传 COS
+    （static/ui/icon 前缀，manifest 缓存）。覆盖：标题 / 正文 / 引用 / 列表 /
+    文字链指令 / 外链 / 按钮区（emoji）/ 尺寸对照 / 无图标对照。
+    素材缺失或 COS 全挂时降级为纯文字提示（测试仍可发送）。
+    """
+    from pathlib import Path
+
+    from .config import config
+    from .storage import get_bucket, KEY_PREFIX, manifest
+
+    bucket = get_bucket()
+    root = Path(config.data_path) / "ui" / "icons"
+    prefix = f"{KEY_PREFIX['ui']}/icon"
+
+    # stem -> (url, 实际宽, 实际高)；宽高从 manifest 取（上传时写入），缺失兜底 1:1
+    icons: dict[str, tuple[str, int, int]] = {}
+    if root.is_dir():
+        for p in sorted(root.glob("*.png")):
+            url = await bucket.get_or_upload_file(p, prefix=prefix)
+            if not url:
+                continue
+            entry = manifest.get_static(f"{prefix}/{p.name}") or {}
+            w, h = entry.get("width") or 0, entry.get("height") or 0
+            icons[p.stem] = (url, w, h)
+    if not icons:
+        return MessageSegment.text("图标素材缺失：data/asoul/ui/icons/ 下没有 png，无法测试。")
+
+    def _img(name: str, size: int) -> str:
+        """按显示尺寸生成 md 图片字面量；非方图保持纵横比（高按比例换算）。"""
+        url, w, h = icons[name]
+        if w and h and w != h:
+            size = round(size * h / w)
+        return bucket.build_md_image(url, size, size, "")
+
+    def _i20(name: str) -> str:
+        return _img(name, 20)
+
+    # 取前三个图标做展示（不依赖具体文件名，目录内容可换）
+    _names = sorted(icons.keys())
+    a = _names[0]
+    b = _names[1] if len(_names) > 1 else a
+    c = _names[2] if len(_names) > 2 else a
+
+    content = (
+        "# 图标渲染测试\n"
+        f"20px 图标在 md 各元素中的表现：{_i20(a)}\n\n"
+        f"## {_i20(a)} 一、二级标题\n"
+        f"{_i20(b)} 标题下方正文行首图标\n"
+        f"### {_i20(c)} 三级标题图标\n\n"
+        "## 二、正文\n"
+        f"{_i20(a)} 行首图标：正文开头。\n"
+        f"文字中间 {_i20(b)} 插入图标，后面继续文字。\n"
+        f"行尾图标：句子结束。{_i20(c)}\n\n"
+        "## 三、引用与列表\n"
+        f"> {_i20(a)} 引用块内图标：测试 quote 渲染。\n"
+        f"- {_i20(b)} 列表项图标一\n"
+        f"- {_i20(c)} 列表项图标二\n\n"
+        "## 四、文字链指令\n"
+        f"{_i20(a)} {text_chain('/今日运势', '🎲 今日运势（图标在前）')}\n"
+        f"{text_chain('/今日运势', '今日运势（无图标对照）')}\n"
+        f"{_img(a, 28)} {text_chain('/测试图标', '再测一次（28px）')}\n\n"
+        "## 五、外链\n"
+        f"{_i20(b)} [使用说明](https://docs.qq.com/doc/DRkFEbEhoa1Jzc05r)\n"
+        f"[使用说明（无图标对照）](https://docs.qq.com/doc/DRkFEbEhoa1Jzc05r)\n\n"
+        "## 六、尺寸对照（同一张图，md 语法控制显示尺寸）\n"
+        f"20px：{_img(a, 20)} 对比 28px：{_img(a, 28)} 对比 32px：{_img(a, 32)}\n\n"
+        "## 七、按钮区（支持 emoji，不支持图片图标）\n"
+        "下方：emoji 按钮 vs 纯文字按钮对照：\n"
+    )
+    btn_emoji = command_button("test_icon_emoji", "🎲 emoji按钮", "/测试图标")
+    keyboard = build_keyboard([
+        [btn_emoji, BTN_TEST_MARKDOWN],
+        [BTN_ICON_TEST],
+    ])
+    return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)
+
+
 def get_test_markdown():
     content = (
         "# Markdown 测试\n"
@@ -244,19 +351,19 @@ def _xiaoran_command_center_content() -> str:
     供 about_xiaoran / welcome 复用。"""
     return (
         "![嘉然 Diana #1053px #432px](https://img.cdn1.vip/i/6a04661d8253e_1778673181.png)\n\n"
-        "## 📋 小然指令中心\n"
+        f"## {icon('我们是asoul.png', 28) or '📋'} 小然指令中心\n"
         "嘉然 Diana 的 QQ 群小助手\n\n"
-        "**🎮 娱乐功能**\n"
+        f"**{icon('开心-小恶魔.png') or '🎮'} 娱乐功能**\n"
         f">{TC_FORTUNE} · {TC_WIFE} · {TC_EAT} · {TC_DRINK} · {TC_QUOTATION}\n\n"
-        "**🐣 养然然**\n"
+        f"**{icon('喵喵-可爱.png') or '🐣'} 养然然**\n"
         f">{TC_CHECKIN} · {TC_STATUS} · {TC_COSTUME} · {TC_HELP}\n"
         f">日常互动：{TC_FEED} · {TC_PLAY} · {TC_WORK} · {TC_INTERACT}\n\n"
-        "**📺 直播相关**\n"
+        f"**{icon('嘉速心动.png') or '📺'} 直播相关**\n"
         f">{TC_SUBSCRIBE} · {TC_FAN_STATS} · {TC_SCHEDULE}\n\n"
-        "**🛡️ 群管**（群主/管理员）\n"
+        f"**{icon('暗中观察-偷看.png') or '🛡️'} 群管**（群主/管理员）\n"
         ">入群欢迎语 · 关键词撤回 · 禁言\n"
         f">{TC_GROUP_ADMIN_HELP}\n\n"
-        "**🎨 二创和数据站**\n"
+        f"**{icon('好想法.png') or '🎨'} 二创和数据站**\n"
         f">[A手像素画板]({URL_PIXEL_BOARD}) · [直播数据站]({URL_LIVE_DATA})\n\n"
         "更多说明见下方链接～\n"
     )
@@ -276,14 +383,14 @@ def get_group_admin_help_md() -> Message:
     正文用指令文字链铺开，不占按钮额度；键盘挂"菜单"按钮跳回指令中心。
     """
     content = (
-        "## 🛡️ 群管指令\n\n"
+        f"## {icon('暗中观察-偷看.png', 28) or '🛡️'} 群管指令\n\n"
         "以下指令仅群主 / 管理员可用（撤回需 Bot 为群管理员）。\n\n"
-        "**🎉 入群欢迎语**\n"
+        f"**{icon('嘉人们-打招呼.png') or '🎉'} 入群欢迎语**\n"
         f"{TC_WELCOME_ON} · {TC_DISABLE_WELCOME} · {TC_VIEW_WELCOME} · {TC_SET_WELCOME}\n"
-        "**🔍 撤回关键词**\n"
+        f"**{icon('敲打-打你.png') or '🔍'} 撤回关键词**\n"
         f"{TC_RECALL_VIEW} · {TC_RECALL_SET} · {TC_RECALL_DEL} · {TC_RECALL_CLEAR}\n"
         "> 设置格式：/设置撤回关键词 词1 词2 ...，群成员消息命中即撤回。\n\n"
-        "**🔇 成员管理**\n"
+        f"**{icon('绷不住了-难绷-无语.png') or '🔇'} 成员管理**\n"
         f"{TC_MUTE} · {TC_UNMUTE}\n"
         "> 用法：/禁言 @成员 时长（30m/2h/1d/7d，默认 15 分钟）；/解禁 @成员。\n"
     )
@@ -297,9 +404,9 @@ def get_welcome_markdown(scene: str) -> Message:
     scene: "friend" 或 "group"，决定欢迎语措辞。走被动回复（matcher.send 自动带 event_id）。
     """
     if scene == "friend":
-        greeting = "嘉然 Diana 收到你啦～以下是能玩的指令 👇\n\n"
+        greeting = f"{icon('嘉人们-打招呼.png') or '👋'} 嘉然 Diana 收到你啦～以下是能玩的指令 👇\n\n"
     else:
-        greeting = "嘉然 Diana 进群啦～以下是能玩的指令 👇\n\n"
+        greeting = f"{icon('嘉人们-打招呼.png') or '👋'} 嘉然 Diana 进群啦～以下是能玩的指令 👇\n\n"
     content = greeting + _xiaoran_command_center_content()
     return (
         MessageSegment.markdown(content)
@@ -347,7 +454,7 @@ def get_member_welcome_md(text: str, member_openid: str) -> Message:
     按钮区挂"使用说明"（外链）+ "菜单"（注入 /关于小然）两个按钮。
     """
     content = (
-        f"🎉 欢迎新成员<qqbot-at-user id=\"{member_openid}\" />\n\n{text}\n\n"
+        f"{icon('嘉人们-打招呼.png') or '🎉'} 欢迎新成员<qqbot-at-user id=\"{member_openid}\" />\n\n{text}\n\n"
         f"> 群管操作：{TC_DISABLE_WELCOME} · {TC_SET_WELCOME} · {TC_GROUP_ADMIN_HELP}"
     )
     keyboard = build_keyboard([[BTN_USAGE_DOC, BTN_MENU]])

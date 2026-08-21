@@ -18,7 +18,7 @@ from . import manage as _manage
 from . import agent as _agent
 from . import message_review as _message_review
 from .diana import commands as _diana_commands
-from .markdown import get_about_xiaoran_markdown, get_test_markdown
+from .markdown import get_about_xiaoran_markdown, get_test_markdown, get_icon_test_markdown
 
 __plugin_meta__ = PluginMetadata(
     name="asoul插件",
@@ -30,6 +30,7 @@ __plugin_meta__ = PluginMetadata(
 )
 
 test_markdown = on_command("测试markdown", aliases={"测试md"}, priority=config.command_priority)
+icon_test = on_command("测试图标", aliases={"测试icon"}, priority=config.command_priority)
 about_xiaoran = on_command("关于小然", aliases={"小然", "关于然然", "菜单", "帮助", "指令"}, priority=config.command_priority)
 
 
@@ -37,6 +38,12 @@ about_xiaoran = on_command("关于小然", aliases={"小然", "关于然然", "�
 async def _():
     message = get_test_markdown()
     await test_markdown.finish(message)
+
+
+@icon_test.handle()
+async def _():
+    message = await get_icon_test_markdown()
+    await icon_test.finish(message)
 
 
 @about_xiaoran.handle()

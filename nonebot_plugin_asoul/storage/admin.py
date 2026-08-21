@@ -33,6 +33,7 @@ def _local_root_for_prefix(prefix: str) -> Path | None:
         "static/wife": data_root / config.wife_img_dir,
         "static/fortune/base": data_root / "resource" / "img" / "asoul",
         "static/ui": data_root / "ui",
+        "static/ui/icon": data_root / "ui" / "icons",
         "static/agent/sticker": data_root / "agent" / "stickers",
         "static/agent/image": data_root / "agent" / "images",
     }
@@ -44,6 +45,7 @@ _DEFAULT_SYNC_PREFIXES = [
     "static/whateat/eat",
     "static/whateat/drink",
     "static/wife",
+    "static/ui/icon",
     "static/agent/sticker",
     "static/agent/image",
 ]
