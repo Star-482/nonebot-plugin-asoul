@@ -47,6 +47,12 @@ class Config(BaseModel):
     agent_base_url: str = "https://api.openai.com/v1"
     agent_api_key: str = ""
     agent_model: str = "gpt-4o-mini"
+    # 强制 JSON 输出：开 = chat.completions 附加 response_format={"type":"json_object"}。
+    # 仅当供应商支持时开启（OpenAI 及多数兼容平台支持；Agnes 文档未提及，可开启实测，400 则关掉）
+    agent_json_mode: bool = False
+    # 思考模式开关（DeepSeek V4 默认开启且 effort=high）。关 = 请求附 thinking.type=disabled，
+    # 聊天更快更省；仅对支持该参数的模型生效（DeepSeek 系），其他供应商忽略不开关时无影响
+    agent_thinking: bool = True
     # 单次对话工具调用循环最大步数（含工具场景；闲聊通常 1 步）
     agent_max_turns: int = 5
     # 当前上下文消息条数上限，达到后触发摘要压缩（旧消息入 compressed 存档 + 滚动摘要）
@@ -58,8 +64,14 @@ class Config(BaseModel):
     # 人设/功能文档 md，相对 data_path；不存在则用内置占位/跳过
     agent_character_path: str = "agent/character.md"
     agent_plugin_doc_path: str = "agent/plugin_doc.md"
-    # 关键记忆 md，相对 data_path；默认注入 system prompt
+    # 关键记忆 md，相对 data_path；全量注入 system prompt（lookup_memories 工具可精确检索同一份）
     agent_memories_path: str = "agent/memories.md"
+    # ── Agent 视觉（用户发图 -> 视觉模型转文字描述并入对话，OpenAI 兼容多模态 API）──
+    # 总开关：默认关；需另配视觉模型（DeepSeek 主模型无 vision 能力）
+    agent_vision_enabled: bool = False
+    agent_vision_model: str = ""       # 如 qwen-vl-plus / glm-4v-flash / gpt-4o-mini
+    agent_vision_base_url: str = ""    # 空 = 复用 agent_base_url（视觉与主模型同供应商时方便）
+    agent_vision_api_key: str = ""     # 空 = 复用 agent_api_key
 
     # ── 消息审核（捕获所有入/出站消息，SQLite 存储 + REST/WS 推送给外部仿 QQ 客户端）──
     # 总开关：默认关，开发审核工具，按需在 .env 开启

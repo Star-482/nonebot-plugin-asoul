@@ -26,6 +26,8 @@ KEY_PREFIX = {
     "activity": "static/activity",
     "ui": "static/ui",
     "live_session": "static/live_session",
+    "agent_sticker": "static/agent/sticker",
+    "agent_image": "static/agent/image",
     # addressed 段：按 recipe 哈希 key
     "addressed_fortune": "addressed/fortune",
     "addressed_diana_interaction": "addressed/diana/interaction",
@@ -143,7 +145,12 @@ class COSBucket:
             return await self._do_upload_file(local_path, key, local_sha)
 
         # manifest miss → 尝试从 COS 恢复（HEAD 读元数据），避免重复上传
-        meta = await asyncio.to_thread(cos_client.head_object_meta_sync, key)
+        # 网络异常按 miss 处理（走上传路径），COS 不可达时最终返回 None 由调用方降级
+        try:
+            meta = await asyncio.to_thread(cos_client.head_object_meta_sync, key)
+        except Exception as e:
+            logger.warning(f"COS head 失败 key={key}：{e}")
+            meta = None
         if meta is not None:
             width = int(meta.get("width", 420))
             height = int(meta.get("height", 420))
@@ -209,7 +216,12 @@ class COSBucket:
 
             # manifest miss → 尝试从 COS 恢复（HEAD 读元数据），跳过重复渲染
             key = f"{prefix}/{h}.{ext}"
-            meta = await asyncio.to_thread(cos_client.head_object_meta_sync, key)
+            # 网络异常按 miss 处理（走渲染上传路径），COS 不可达时最终返回 None 由调用方降级
+            try:
+                meta = await asyncio.to_thread(cos_client.head_object_meta_sync, key)
+            except Exception as e:
+                logger.warning(f"COS head 失败 key={key}：{e}")
+                meta = None
             if meta is not None:
                 img_w = int(meta.get("width", 420))
                 img_h = int(meta.get("height", 420))

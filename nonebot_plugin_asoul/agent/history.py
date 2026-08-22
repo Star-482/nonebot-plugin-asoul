@@ -104,14 +104,28 @@ def _trim_to_boundary(messages: list[dict], limit: int) -> None:
 
 
 async def get_history_for_request(user_id: str) -> list[dict]:
-    """组装进 LLM 请求的历史部分：[summary_sys?] + messages。
+    """组装进 LLM 请求的历史部分：[summary_user?] + messages。
     调用方再前置 system_prompt、后置当前 user + 条数指令。
+    摘要必须是 user 角色：历史里不能出现任何 system 消息（含开头第二条），
+    DeepSeek 服务端模板会重排/合并 system 消息，位置行为无文档保证，压缩时
+    可能连累主 system prompt 的缓存前缀；user 角色把缓存断点钉死在
+    tools+system 之后。摘要是请求时现拼的临时消息，不落盘、不进 messages，
+    对存储/压缩零影响。
     """
     async with _LOCK:
         state = _get_state(user_id)
         out: list[dict] = []
         if state["summary"]:
-            out.append({"role": "system", "content": f"【历史对话摘要】\n{state['summary']}"})
+            out.append(
+                {
+                    "role": "user",
+                    "content": (
+                        "（以下是你们更早对话的滚动摘要，系统注入供你了解背景，"
+                        "不是用户现在说的话，不要复述也不要回应本条）\n"
+                        f"【历史对话摘要】\n{state['summary']}"
+                    ),
+                }
+            )
         out.extend(state["messages"])
         return out
 

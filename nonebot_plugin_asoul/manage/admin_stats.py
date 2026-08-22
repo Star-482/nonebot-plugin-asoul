@@ -122,10 +122,13 @@ async def _():
         today_agent = agent_stats.get(today, {})
         agent_total_calls = sum(d.get("calls", 0) for d in agent_stats.values())
         agent_total_tokens = sum(d.get("total_tokens", 0) for d in agent_stats.values())
+        agent_total_vision = sum(d.get("vision_calls", 0) for d in agent_stats.values())
         agent_lines = (
             f"今日 agent 对话：{today_agent.get('calls', 0)} 次，"
-            f"消耗 {today_agent.get('total_tokens', 0)} tokens\n"
+            f"消耗 {today_agent.get('total_tokens', 0)} tokens"
+            f"（含视觉识别 {today_agent.get('vision_calls', 0)} 次）\n"
             f"agent 累计对话：{agent_total_calls} 次，消耗 {agent_total_tokens} tokens"
+            f"（视觉识别累计 {agent_total_vision} 次）"
         )
     except Exception:
         agent_lines = "agent 统计不可用"
