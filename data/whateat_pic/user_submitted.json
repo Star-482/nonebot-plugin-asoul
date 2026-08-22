@@ -1,24 +1,28 @@
 {
   "eat_pic": {
-    "鹅肝手握.jpg":{
-      "submitter":"匿名用户",
-      "date":"2026-07-14"
+    "鹅肝手握.jpg": {
+      "submitter": "匿名用户",
+      "date": "2026-07-14"
     },
-    "葡萄鸡丁.png":{
-      "submitter":"匿名用户",
-      "date":"2026-07-14"
+    "葡萄鸡丁.png": {
+      "submitter": "匿名用户",
+      "date": "2026-07-14"
     },
-    "钵钵鸡.jpeg":{
-      "submitter":"匿名用户",
-      "date":"2026-07-14"
+    "钵钵鸡.jpeg": {
+      "submitter": "匿名用户",
+      "date": "2026-07-14"
     },
-    "是啊，吃什么.webp":{
-      "submitter":"匿名用户",
-      "date":"2026-07-14"
+    "是啊，吃什么.webp": {
+      "submitter": "匿名用户",
+      "date": "2026-07-14"
     },
-    "果丹皮.jpeg":{
-      "submitter":"匿名用户",
-      "date":"2026-07-29"
+    "果丹皮.jpeg": {
+      "submitter": "匿名用户",
+      "date": "2026-07-29"
+    },
+    "猪脚饭.webp": {
+      "submitter": "匿名用户",
+      "date": "2026-08-06"
     }
   },
   "drink_pic": {}
