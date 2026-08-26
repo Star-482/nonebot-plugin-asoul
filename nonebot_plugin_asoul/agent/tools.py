@@ -55,6 +55,10 @@ class ToolContext:
     bot: Bot | None = None  # 群管等需调平台 API 的工具用
     member_role: str = ""  # 发送者群身份：owner/admin/""（私聊或普通成员）
     mention_user_ids: list[str] = field(default_factory=list)  # 原消息 @ 的非 bot 成员 openid
+    scene_type: Literal["dm", "group"] = "dm"
+    user_name: str = ""
+    message_id: str = ""
+    trigger_type: Literal["dm", "at", "reply"] = "dm"
 
 
 @dataclass

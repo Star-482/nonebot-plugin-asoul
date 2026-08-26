@@ -141,7 +141,7 @@ data/
 ## 适配器与消息
 
 - **目标适配器**：`nonebot.adapters.qq`（QQ 官方机器人）
-- **响应规则**：指令类命令无需 @bot —— 私聊天然命中；群聊被动模式下只有 @bot 的消息才会推送；群聊全量模式下 `/指令` 直接响应、`@bot` 闲聊由 agent 兜底响应、普通聊天静默
+- **响应规则**：指令类命令无需 @bot —— 私聊天然命中；群聊被动模式下只有 @bot 的消息才会推送；群聊全量模式下 `/指令` 直接响应、`@bot` 闲聊由 agent 兜底响应、普通聊天保持静默（开启 `agent_group_context_enabled` 后只作为 Agent 的短期群聊背景，不会主动触发回复）
 - 插件优先使用 QQ 适配器原生 `MessageSegment`（如 `MessageSegment.markdown()`、`MessageSegment.keyboard()`），以充分使用 QQ 官方机器人的能力；仅在确实需要跨适配器或额外段类型时使用 `nonebot_plugin_alconna.uniseg.UniMessage`
 
 ---
