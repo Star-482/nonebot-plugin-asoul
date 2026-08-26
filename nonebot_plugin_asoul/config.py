@@ -61,6 +61,21 @@ class Config(BaseModel):
     agent_summary_keep: int = 5
     # 每用户调用冷却（秒），防刷
     agent_user_cd: float = 3.0
+    # ── Agent 群聊 ──
+    # 群聊总开关；关闭后 agent 只响应 C2C 私聊
+    agent_group_enabled: bool = True
+    # 是否读取未 @bot 的全量群消息作为短期背景。需要 QQ 平台实际下发 GroupMessageCreateEvent
+    agent_group_context_enabled: bool = True
+    # 每群短期背景的条数与 TTL；只保存在内存中，不落盘
+    agent_group_context_limit: int = 20
+    agent_group_context_ttl: float = 600.0
+    # 每轮最多识别群背景中最新的几张图片；复用主 Agent 现有视觉模型与描述提示词
+    agent_group_context_vision_limit: int = 1
+    # 群级调用冷却与排队上限，避免多人同时 @ 造成模型调用洪峰
+    agent_group_cd: float = 0.0
+    agent_group_queue_limit: int = 3
+    # 跨场景最多同时进行的主 Agent 调用数
+    agent_max_concurrency: int = 30
     # 人设/功能文档 md，相对 data_path；不存在则用内置占位/跳过
     agent_character_path: str = "agent/character.md"
     agent_plugin_doc_path: str = "agent/plugin_doc.md"
