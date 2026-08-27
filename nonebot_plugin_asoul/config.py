@@ -105,6 +105,12 @@ class Config(BaseModel):
     violation_enabled: bool = True
     # 用户违禁累计达此次数后自动拉黑
     violation_threshold: int = 3
+    # 黑名单用户可主动发起一次 AI 复核；默认开启，开启后会把违禁历史发送到 agent 配置的 API
+    violation_ai_review_enabled: bool = True
+    # 空 = 复用 agent_model；可单独指定更适合内容审核的模型
+    violation_ai_review_model: str = ""
+    # 单次复核最多发送的最近违禁记录数，避免异常历史占满模型上下文
+    violation_ai_review_max_records: int = 20
 
     # ── 欢迎消息（加好友/加群事件触发，被动回复小然指令中心）──
     # 总开关：默认开

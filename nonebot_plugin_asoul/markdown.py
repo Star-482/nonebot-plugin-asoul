@@ -151,6 +151,7 @@ BTN_WIFE_AGAIN = command_button("wife_again", "再抽老婆", "/抽老婆")
 BTN_QUOTATION_AGAIN = command_button("quotation_again", "再来一篇", "/发病小作文")
 BTN_EAT_AGAIN = command_button("whateat_eat_again", "换一个", "/今天吃什么", enter=True)
 BTN_DRINK_AGAIN = command_button("whateat_drink_again", "换一个", "/今天喝什么", enter=True)
+BTN_AI_REVIEW = command_button("ai_review", "AI复核", "/AI复核", enter=True)
 
 # ── Diana 玩法导航按钮 ──
 BTN_DIANA_STATUS = command_button("diana_nav_status", "看状态", "/然然状态")
@@ -415,9 +416,9 @@ def get_welcome_markdown(scene: str) -> Message:
 
 
 def get_blacklist_md(text: str) -> Message:
-    """构造拉黑提示的 md 消息（含交流群按钮，提示误判可联系开发者）。"""
-    content = f"{text}\n\n> 如果是误判，可点击下方按钮加入交流群联系开发者。"
-    keyboard = build_keyboard([[BTN_GROUP]])
+    """构造拉黑提示的 md 消息（含 AI 复核与交流群按钮）。"""
+    content = f"{text}\n\n> 如果是误判，可点击下方按钮申请 AI 复核或联系开发者。"
+    keyboard = build_keyboard([[BTN_AI_REVIEW, BTN_GROUP]])
     return MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)
 
 
