@@ -133,8 +133,15 @@ data/
 | `cos_bucket_name` | `diana-image` | COS 桶名 |
 | `cos_public_url` | — | 公网访问域（CDN 或 COS 静态网站），用于拼出图片直链 |
 | `cos_region` | `ap-guangzhou` | COS 桶所在区域（SigV4 签名必需） |
+| `violation_enabled` | `true` | 是否启用违禁词拦截 |
+| `violation_threshold` | `3` | 违禁累计达到此次数后自动拉黑 |
+| `violation_ai_review_enabled` | `false` | 是否允许黑名单用户使用一次 `/AI复核`；开启后会把其违禁历史发送到配置的 AI 服务 |
+| `violation_ai_review_model` | 空 | AI 复核使用的模型；为空时复用 `agent_model` |
+| `violation_ai_review_max_records` | `20` | 单次 AI 复核发送的最近违禁记录数 |
 
 > `diana_saves_dir` 控制嘉然宠物用户存档位置，默认 `diana/saves`（相对于 `data_path`）；签到排名数据固定写在 `diana/checkin/` 下。嘉然宠物的 data（YAML/模板）与 assets（服装立绘）已打包在 `nonebot_plugin_asoul/diana/` 包内，不再需要额外的外部配置。
+
+> AI 复核复用 `agent_base_url`、`agent_api_key` 和 `agent_model` 的 OpenAI 兼容配置，但不要求开启 `agent_enabled`。模型调用失败或返回不符合约定的结果时，不会消耗用户的复核机会。
 
 ---
 
