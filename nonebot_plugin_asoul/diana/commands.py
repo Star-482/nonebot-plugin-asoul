@@ -28,6 +28,14 @@ logger = logging.getLogger(__name__)
 
 from .session import DianaSession, shutdown, list_items
 from .exceptions import DianaError
+from .ranking import (
+    format_global_coin_board,
+    format_group_coin_board,
+    get_global_coin_board,
+    get_group_coin_board,
+    record_checkin_coin_gain,
+    record_interaction_coin_gain,
+)
 from ..markdown import KB_DIANA_NAV, text_chain
 
 # ── stat 变化的中文标签和图标 ──
@@ -194,6 +202,18 @@ async def send_result(result: dict, matcher: Matcher, kind: str = "text") -> Non
     await matcher.send(builder(result))
 
 
+async def _run_interaction(event: Event, matcher: Matcher, action_id: str) -> None:
+    """执行一次互动，并同步群参与者和本次正向金币贡献。"""
+    session = await get_session(event.get_user_id())
+    try:
+        result = await session.interact(action_id)
+    except DianaError as exc:
+        await send_result(_error_result(exc), matcher, "text")
+        return
+    record_interaction_coin_gain(event, result)
+    await send_result(result, matcher, "interaction")
+
+
 def _extract_arg(args: Message) -> str:
     return args.extract_plain_text().strip()
 
@@ -236,6 +256,10 @@ diana_interact = on_command("互动", aliases={"撒娇", "和然然互动"}, pri
 diana_daily = on_command("日常", aliases={"日常活动"}, priority=config.command_priority)
 diana_help = on_command("然然帮助", aliases={"宠物帮助", "然然指令"}, priority=config.command_priority)
 diana_checkin = on_command("签到", aliases={"嘉心糖签到", "每日签到"}, priority=config.command_priority)
+diana_coin_rank = on_command("金币榜", aliases={"金币排行榜"}, priority=config.command_priority)
+diana_group_coin_rank = on_command(
+    "本群金币榜", aliases={"群金币榜"}, priority=config.command_priority
+)
 
 
 # ── 签到奖励分层 ──
@@ -388,6 +412,7 @@ async def _(event: Event, matcher: Matcher):
     })
     _save_today_checkin(checkin_data)
     session._save()
+    record_checkin_coin_gain(event, coin_reward)
 
     is_dm = group_id == "dm"
     msg = _build_checkin_success_msg(
@@ -408,13 +433,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     action_id = _extract_arg(args)
     if not action_id:
         await diana_feed.finish("要投喂什么呢？比如：/投喂 鸡胸肉、/投喂 小草莓、/投喂 薯片")
-    session = await get_session(event.get_user_id())
-    try:
-        result = await session.interact(action_id)
-    except DianaError as exc:
-        await send_result(_error_result(exc), matcher, "text")
-        return
-    await send_result(result, matcher, "interaction")
+    await _run_interaction(event, matcher, action_id)
 
 
 @diana_play.handle()
@@ -422,13 +441,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     action_id = _extract_arg(args)
     if not action_id:
         await diana_play.finish("玩什么呢？比如：/玩 连连看、/玩 宅舞一支、/玩 你画我猜")
-    session = await get_session(event.get_user_id())
-    try:
-        result = await session.interact(action_id)
-    except DianaError as exc:
-        await send_result(_error_result(exc), matcher, "text")
-        return
-    await send_result(result, matcher, "interaction")
+    await _run_interaction(event, matcher, action_id)
 
 
 @diana_work.handle()
@@ -436,13 +449,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     action_id = _extract_arg(args)
     if not action_id:
         await diana_work.finish("做什么工作呢？比如：/打工 日常直播、/打工 生日会直播、/打工 团播")
-    session = await get_session(event.get_user_id())
-    try:
-        result = await session.interact(action_id)
-    except DianaError as exc:
-        await send_result(_error_result(exc), matcher, "text")
-        return
-    await send_result(result, matcher, "interaction")
+    await _run_interaction(event, matcher, action_id)
 
 
 @diana_interact.handle()
@@ -450,13 +457,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     action_id = _extract_arg(args)
     if not action_id:
         await diana_interact.finish("要和然然做什么互动呢？比如：/互动 摸摸头、/互动 Mua、/互动 喊一米八")
-    session = await get_session(event.get_user_id())
-    try:
-        result = await session.interact(action_id)
-    except DianaError as exc:
-        await send_result(_error_result(exc), matcher, "text")
-        return
-    await send_result(result, matcher, "interaction")
+    await _run_interaction(event, matcher, action_id)
 
 
 @diana_daily.handle()
@@ -464,13 +465,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     action_id = _extract_arg(args)
     if not action_id:
         await diana_daily.finish("和然然一起做什么呢？比如：/日常 休息、/日常 逛街、/日常 刷B站")
-    session = await get_session(event.get_user_id())
-    try:
-        result = await session.interact(action_id)
-    except DianaError as exc:
-        await send_result(_error_result(exc), matcher, "text")
-        return
-    await send_result(result, matcher, "interaction")
+    await _run_interaction(event, matcher, action_id)
 
 
 # ── 换装 handler（不走互动管道）──
@@ -517,6 +512,30 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
 
 
 # ── 其他 handler ──
+
+@diana_coin_rank.handle()
+async def _(event: Event, matcher: Matcher):
+    session = await get_session(event.get_user_id())
+    rows, mine = get_global_coin_board(event, event.get_user_id(), session.pet.coins)
+    await matcher.send(
+        MessageSegment.markdown(format_global_coin_board(rows, mine))
+        + MessageSegment.keyboard(KB_DIANA_NAV)
+    )
+
+
+@diana_group_coin_rank.handle()
+async def _(event: Event, matcher: Matcher):
+    if not getattr(event, "group_openid", ""):
+        await diana_group_coin_rank.finish("本群金币榜只能在群聊中使用。")
+        return
+    session = await get_session(event.get_user_id())
+    members, groups, current_group = get_group_coin_board(
+        event, event.get_user_id(), session.pet.coins
+    )
+    await matcher.send(
+        MessageSegment.markdown(format_group_coin_board(members, groups, current_group))
+        + MessageSegment.keyboard(KB_DIANA_NAV)
+    )
 
 @diana_status.handle()
 async def _(event: Event, matcher: Matcher):
@@ -576,6 +595,8 @@ def _build_diana_help_overview() -> str:
         ("/换装", "换装"),
         ("/然然衣柜", "衣柜"),
         ("/解锁", "解锁服装"),
+        ("/金币榜", "金币榜"),
+        ("/本群金币榜", "本群金币榜"),
         ("/然然", "聊天"),
     ]
     lines.append(" · ".join(text_chain(t, s) for t, s in others))
