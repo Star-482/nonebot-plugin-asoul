@@ -134,7 +134,15 @@ def format_group_coin_board(
     lines = ["## 💰 本群成员金币榜", ""]
     lines.append("> 仅统计已参与嘉然玩法的本群成员")
     lines.append("")
-    lines.extend(_format_rows(members, name_key="display_name", empty="本群暂时还没有参与记录。"))
+    lines.extend(
+        _format_rows(
+            members,
+            name_key="display_name",
+            empty="本群暂时还没有参与记录。",
+            quoted=True,
+            emphasized=False,
+        )
+    )
     lines.extend(["", "## 🌐 全部群金币榜", "", "> 按最近 30 天群内获得的金币统计", ""])
     lines.extend(
         _format_rows(
@@ -142,32 +150,44 @@ def format_group_coin_board(
             name_key="group_name",
             empty="暂时还没有群贡献记录。",
             fallback_prefix="未命名群",
+            quoted=True,
+            emphasized=False,
         )
     )
     lines.append("")
     if current_group is None:
-        lines.append("> 当前群暂无贡献记录，完成群内签到或互动后即可入榜。")
+        lines.append("当前群暂无贡献记录，完成群内签到或互动后即可入榜。")
     else:
         lines.append(
-            f"> 📍 当前群：第 **{current_group[0]}** 名 · "
+            f"📍 当前群：第 **{current_group[0]}** 名 · "
             f"近 30 天 **{current_group[1]}** 群贡献金币"
         )
     return "\n".join(lines)
 
 
 def _format_rows(
-    rows: list[dict], name_key: str, empty: str, fallback_prefix: str = "用户"
+    rows: list[dict],
+    name_key: str,
+    empty: str,
+    fallback_prefix: str = "用户",
+    quoted: bool = False,
+    emphasized: bool = True,
 ) -> list[str]:
     if not rows:
         return [f"> {empty}"]
     lines = []
+    prefix = "> " if quoted else ""
     for rank, row in enumerate(rows, start=1):
         name = _safe_name(
             str(row.get(name_key) or ""),
             str(row.get("user_id") or row.get("group_openid") or ""),
             fallback_prefix,
         )
-        lines.append(f"{rank}. **{name}** · **{int(row['coins'])}** 嘉心糖币")
+        coins = int(row["coins"])
+        if emphasized:
+            lines.append(f"{prefix}{rank}. **{name}** · **{coins}** 嘉心糖币")
+        else:
+            lines.append(f"{prefix}{rank}. {name} · {coins} 嘉心糖币")
     return lines
 
 
