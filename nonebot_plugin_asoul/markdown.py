@@ -31,6 +31,7 @@ URL_SUBMIT = "https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ"  # 点我投稿
 URL_GROUP = "https://qm.qq.com/q/bTIMDcbTkA"                    # 交流群
 URL_PIXEL_BOARD = "https://pixel-asoul.club/"                   # A手像素画板
 URL_LIVE_DATA = "https://live.pixel-asoul.club"                 # 直播数据站
+URL_VTUBER_SIMULATOR = "https://vtuber.pixel-asoul.club/"       # 虚拟生涯模拟器
 WIFE_VOTE_CALLBACK_PREFIX = "asoul:wife:vote:"
 
 
@@ -410,7 +411,8 @@ def _xiaoran_command_center_content() -> str:
         ">入群欢迎语 · 关键词撤回 · 禁言\n"
         f">{TC_GROUP_ADMIN_HELP}\n\n"
         f"**{icon('好想法.png') or '🎨'} 二创和数据站**\n"
-        f">[A手像素画板]({URL_PIXEL_BOARD}) · [直播数据站]({URL_LIVE_DATA})\n\n"
+        f">[A手像素画板]({URL_PIXEL_BOARD}) · [直播数据站]({URL_LIVE_DATA}) · "
+        f"[虚拟生涯模拟器]({URL_VTUBER_SIMULATOR})\n\n"
         "更多说明见下方链接～\n"
     )
 
@@ -450,9 +452,9 @@ def get_welcome_markdown(scene: str) -> Message:
     scene: "friend" 或 "group"，决定欢迎语措辞。走被动回复（matcher.send 自动带 event_id）。
     """
     if scene == "friend":
-        greeting = f"{icon('嘉人们-打招呼.png') or '👋'} 嘉然 Diana 收到你啦～以下是能玩的指令 👇\n\n"
+        greeting = f"{icon('嘉人们-打招呼.png') or '👋'}  小然 收到你啦～以下是能玩的指令 👇\n\n"
     else:
-        greeting = f"{icon('嘉人们-打招呼.png') or '👋'} 嘉然 Diana 进群啦～以下是能玩的指令 👇\n\n"
+        greeting = f"{icon('嘉人们-打招呼.png') or '👋'}  小然 进群啦～以下是能玩的指令 👇\n\n"
     content = greeting + _xiaoran_command_center_content()
     return (
         MessageSegment.markdown(content)
