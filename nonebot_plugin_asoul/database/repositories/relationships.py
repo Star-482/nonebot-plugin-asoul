@@ -37,13 +37,23 @@ class GroupsRepo:
             get_db().commit()
 
     def ensure_added(self, gid: str) -> None:
-        """确保群关系存在（消息事件兜底）。已存在则无操作，不动已有字段。"""
+        """确保群关系存在（消息事件兜底）。
+
+        已存在时不修改字段，也不提交事务，避免每次 @bot 都产生一次
+        无效的 SQLite 提交。
+        """
         with _db_lock:
-            get_db().execute(
+            db = get_db()
+            exists = db.execute(
+                "SELECT 1 FROM groups WHERE group_openid=?", (gid,)
+            ).fetchone()
+            if exists:
+                return
+            db.execute(
                 "INSERT OR IGNORE INTO groups (group_openid, added_at) VALUES (?, ?)",
                 (gid, _now()),
             )
-            get_db().commit()
+            db.commit()
 
     def mark_removed(self, gid: str) -> None:
         """标记退群。push_state 由 clear_push 单独清。"""
@@ -93,6 +103,23 @@ class GroupsRepo:
                    ORDER BY group_openid"""
             ).fetchall()
         return [r["group_openid"] for r in rows]
+
+    def list_active_with_messages(self, start_epoch: float, end_epoch: float) -> list[str]:
+        """返回给定时间范围内有消息记录、且 bot 仍在群内的群 ID。"""
+        with _db_lock:
+            rows = get_db().execute(
+                """SELECT DISTINCT groups.group_openid
+                   FROM groups
+                   JOIN messages
+                     ON messages.scene_id=groups.group_openid
+                    AND messages.scene_type='group'
+                   WHERE groups.removed_at IS NULL
+                     AND messages.epoch >= ?
+                     AND messages.epoch < ?
+                   ORDER BY groups.group_openid""",
+                (start_epoch, end_epoch),
+            ).fetchall()
+        return [row["group_openid"] for row in rows]
 
     def get_member_counts(self, gids: list[str]) -> dict[str, Optional[int]]:
         """批量查群人数。返回 {group_openid: member_count or None}，未记录的 gid 不在结果中。"""
@@ -164,13 +191,23 @@ class FriendsRepo:
             get_db().commit()
 
     def ensure_added(self, openid: str) -> None:
-        """确保好友关系存在（消息事件兜底）。已存在则无操作，不动已有字段。"""
+        """确保好友关系存在（消息事件兜底）。
+
+        已存在时不修改字段，也不提交事务，避免每条私聊消息都产生一次
+        无效的 SQLite 提交。
+        """
         with _db_lock:
-            get_db().execute(
+            db = get_db()
+            exists = db.execute(
+                "SELECT 1 FROM friends WHERE openid=?", (openid,)
+            ).fetchone()
+            if exists:
+                return
+            db.execute(
                 "INSERT OR IGNORE INTO friends (openid, added_at) VALUES (?, ?)",
                 (openid, _now()),
             )
-            get_db().commit()
+            db.commit()
 
     def mark_removed(self, openid: str) -> None:
         with _db_lock:
