@@ -159,4 +159,21 @@ CREATE TABLE IF NOT EXISTS diana_group_coin_ledger (
 );
 CREATE INDEX IF NOT EXISTS idx_diana_group_coin_ledger_window
     ON diana_group_coin_ledger(created_at, group_openid);
+
+-- 抽老婆投票流水：按图片文件名计票，同一用户每天对同图只能投一次
+CREATE TABLE IF NOT EXISTS wife_votes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    image_name TEXT NOT NULL,
+    voter_id TEXT NOT NULL,
+    vote_day TEXT NOT NULL,              -- Asia/Shanghai 自然日，YYYY-MM-DD
+    vote_month TEXT NOT NULL,            -- Asia/Shanghai 自然月，YYYY-MM
+    created_at TEXT NOT NULL,
+    UNIQUE(voter_id, vote_day, image_name)
+);
+CREATE INDEX IF NOT EXISTS idx_wife_votes_voter_day
+    ON wife_votes(voter_id, vote_day);
+CREATE INDEX IF NOT EXISTS idx_wife_votes_image
+    ON wife_votes(image_name);
+CREATE INDEX IF NOT EXISTS idx_wife_votes_month_image
+    ON wife_votes(vote_month, image_name);
 """

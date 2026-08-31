@@ -8,6 +8,7 @@
   这些具名实例，任意组合进自己的 md 消息，统一管理按钮 id / 文案 / 指令。
 - 带参按钮工厂：live_go_button / welcome_review_button / live_sub_button / live_sub_all_button。
 """
+import hashlib
 import urllib.parse
 from typing import Literal
 
@@ -148,6 +149,8 @@ BTN_ICON_TEST = command_button("test_icon", "图标再测", "/测试图标")
 BTN_QUOTATION = command_button("quotation", "发病一下", "/发病小作文")
 BTN_FORTUNE_DRAW = command_button("fortune_draw", "我也要抽签", "/今日运势")
 BTN_WIFE_AGAIN = command_button("wife_again", "再抽老婆", "/抽老婆")
+BTN_WIFE_RANK_TOTAL = command_button("wife_rank_total", "老婆总榜", "/老婆榜 总榜")
+BTN_WIFE_RANK_MONTH = command_button("wife_rank_month", "老婆月榜", "/老婆榜 月榜")
 BTN_QUOTATION_AGAIN = command_button("quotation_again", "再来一篇", "/发病小作文")
 BTN_EAT_AGAIN = command_button("whateat_eat_again", "换一个", "/今天吃什么", enter=True)
 BTN_DRINK_AGAIN = command_button("whateat_drink_again", "换一个", "/今天喝什么", enter=True)
@@ -180,6 +183,7 @@ BTN_WIFE = command_button("wife", "抽老婆", "/抽老婆")
 
 TC_FORTUNE = text_chain("/今日运势", "今日运势")
 TC_WIFE = text_chain("/抽老婆", "抽老婆")
+TC_WIFE_RANK = text_chain("/老婆榜", "老婆榜")
 TC_EAT = text_chain("/今天吃什么", "吃什么")
 TC_DRINK = text_chain("/今天喝什么", "喝什么")
 TC_QUOTATION = text_chain("/发病小作文", "发病小作文")
@@ -249,6 +253,14 @@ def live_sub_all_button(names: list[str], prefix: str = "/订阅开播") -> Butt
     """"全部订阅/取消"按钮：把成员名单作为指令参数注入。"""
     label = "全部取消" if "取消" in prefix else "全部订阅"
     return command_button("live_sub_all", label, cmd(prefix, " ".join(names)))
+
+
+def wife_vote_button(image_name: str) -> Button:
+    """为一张老婆图片创建一键投票按钮。"""
+    digest = hashlib.sha1(image_name.encode("utf-8")).hexdigest()[:12]
+    return command_button(
+        f"wife_vote_{digest}", "投票", cmd("/老婆投票", image_name), enter=True
+    )
 
 
 # ══════════════════ 完整 md 消息构造函数 ══════════════════
@@ -355,7 +367,7 @@ def _xiaoran_command_center_content() -> str:
         f"## {icon('我们是asoul.png', 28) or '📋'} 小然指令中心\n"
         "嘉然 Diana 的 QQ 群小助手\n\n"
         f"**{icon('开心-小恶魔.png') or '🎮'} 娱乐功能**\n"
-        f">{TC_FORTUNE} · {TC_WIFE} · {TC_EAT} · {TC_DRINK} · {TC_QUOTATION}\n\n"
+        f">{TC_FORTUNE} · {TC_WIFE} · {TC_WIFE_RANK} · {TC_EAT} · {TC_DRINK} · {TC_QUOTATION}\n\n"
         f"**{icon('喵喵-可爱.png') or '🐣'} 养然然**\n"
         f">{TC_CHECKIN} · {TC_STATUS} · {TC_COSTUME} · {TC_HELP}\n"
         f">日常互动：{TC_FEED} · {TC_PLAY} · {TC_WORK} · {TC_INTERACT}\n\n"
