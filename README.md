@@ -15,6 +15,7 @@
 | `/本周日程` | `/日程` | 查看今天与明天的安排，附日程图 |
 | `/关于小然` | `/小然`、`/关于然然` | 嘉然 & Bot 介绍（Markdown + 内联按钮） |
 | `/抽老婆` | — | 随机抽取一张图片（Markdown 卡片） |
+| `/老婆榜 [总榜\|月榜]` | `/抽老婆榜` | 查看抽老婆图片的总榜或当月票数榜 |
 | `/今天吃什么` | — | 随机推荐美食（Markdown 卡片） |
 | `/今天喝什么` | — | 随机推荐饮品（Markdown 卡片） |
 | `/订阅开播` | `/开播通知` | 订阅指定成员的 B 站开播通知（按钮式引导） |
@@ -39,9 +40,13 @@
 | 日常 | `/日常 <活动>` | `日常活动` | 日常活动 |
 | ~~聊天~~ | ~~`/然然 <话题>`~~ | ~~`然然聊天`~~ | 已下线（matcher 注释停用） |
 | 签到 | `/签到` | `嘉心糖签到`、`每日签到` | 每日签到，按全用户排名分层奖励 |
+| 金币榜 | `/金币榜` | `金币排行榜` | 全部用户当前嘉心糖币 Top 10，并显示自己的排名 |
+| 本群金币榜 | `/本群金币榜` | `群金币榜` | 本群已参与成员的余额 Top 10、全部群近 30 天贡献 Top 10 与本群排名 |
 | 帮助 | `/然然帮助` | `宠物帮助`、`然然指令` | 查看所有指令 |
 
 签到奖励按全用户排名分层：🥇 第 1 名 50 币 / 🥈 第 2-3 名 30 币 / 🥉 第 4-10 名 20 币 / 第 11 名起 10 币。连续签到天数独立于互动 streak，每日排名数据按日分文件保存在 `diana/checkin/` 下。
+
+`/金币榜` 首次查询会导入既有宠物存档的当前金币余额。`/本群金币榜` 的成员范围是实际在该群使用过嘉然玩法的用户；群间排行从功能上线后开始累计群内签到、互动和事件获得的正向金币，并滚动统计最近 30 天。
 
 底层设计与模块结构见 `nonebot_plugin_asoul/diana/API_REFERENCE.md`。
 
@@ -103,7 +108,7 @@ data/
 │   │   ├── img/asoul/            # 抽签底图
 │   │   └── out/                  # 抽签结果输出目录（自动创建）
 │   ├── wife_img/                 # 抽老婆图片池
-│   └── asoul.db                  # 公共 SQLite（关系/订阅/统计等，自动创建）
+│   └── asoul.db                  # 公共 SQLite（关系/订阅/统计/金币榜等，自动创建）
 └── whateat_pic/
     ├── eat_pic/                  # 吃什么图片池
     └── drink_pic/                # 喝什么图片池
@@ -141,6 +146,10 @@ data/
 
 > `diana_saves_dir` 控制嘉然宠物用户存档位置，默认 `diana/saves`（相对于 `data_path`）；签到排名数据固定写在 `diana/checkin/` 下。嘉然宠物的 data（YAML/模板）与 assets（服装立绘）已打包在 `nonebot_plugin_asoul/diana/` 包内，不再需要额外的外部配置。
 
+> 抽老婆卡片显示该图片的总榜和本月排名；点击“投票”会直接完成投票，无需再发送指令。投票全局生效，默认每人每天 3 票、同一图片每天只能投一次；榜单仅展示当前仍在图库中的图片。
+
+> 使用抽老婆卡片的“投票”回调按钮前，需在 NoneBot 的 `qq_bots` 配置中为对应机器人启用 `intent.interaction=true`，并在 QQ 开放平台为机器人订阅 Interaction 事件。
+
 > AI 复核复用 `agent_base_url`、`agent_api_key` 和 `agent_model` 的 OpenAI 兼容配置，但不要求开启 `agent_enabled`。模型调用失败或返回不符合约定的结果时，不会消耗用户的复核机会。
 
 ---
@@ -163,7 +172,7 @@ nonebot_plugin_asoul/
 ├── admin_stats.py           # 全局 pre/post processor 统计命令使用情况
 ├── activity.py              # 周日程读写
 ├── fortune_manager.py       # 抽签（每日每用户每群一次，COS 配方缓存）
-├── random_wife.py           # 抽老婆（Markdown 卡片）
+├── random_wife.py           # 抽老婆、投票与排行榜（Markdown 卡片）
 ├── markdown.py              # QQ Markdown + 内联键盘
 ├── whateat.py               # 今天吃/喝什么（Markdown 卡片）
 ├── utils.py                 # JSON 读写、图片下载、抽签合成
@@ -182,6 +191,7 @@ nonebot_plugin_asoul/
 └── diana/                   # 嘉然宠物核心引擎
     ├── __init__.py          # 版本号 + 拉取 commands 注册
     ├── commands.py          # NoneBot 命令注册与 handler（签到逻辑在此）
+    ├── ranking.py           # 金币榜数据同步、群贡献记录和 Markdown 构造
     ├── session.py           # DianaSession 会话管理、互动管线、post-action hooks
     ├── core.py              # PetState 状态、属性衰减、等级系统
     ├── items.py             # Item / ItemRegistry，YAML 驱动的交互物品

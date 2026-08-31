@@ -8,6 +8,7 @@
   这些具名实例，任意组合进自己的 md 消息，统一管理按钮 id / 文案 / 指令。
 - 带参按钮工厂：live_go_button / welcome_review_button / live_sub_button / live_sub_all_button。
 """
+import hashlib
 import urllib.parse
 from typing import Literal
 
@@ -30,6 +31,7 @@ URL_SUBMIT = "https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ"  # 点我投稿
 URL_GROUP = "https://qm.qq.com/q/bTIMDcbTkA"                    # 交流群
 URL_PIXEL_BOARD = "https://pixel-asoul.club/"                   # A手像素画板
 URL_LIVE_DATA = "https://live.pixel-asoul.club"                 # 直播数据站
+WIFE_VOTE_CALLBACK_PREFIX = "asoul:wife:vote:"
 
 
 # ══════════════════ 构造器（适配器模型的薄封装） ══════════════════
@@ -72,6 +74,26 @@ def command_button(
             reply=reply,
             enter=enter,
             unsupport_tips=f"请手动发送：{command}",
+        ),
+    )
+
+
+def callback_button(
+    button_id: str, label: str, data: str, *, style: Literal[0, 1] = 1
+) -> Button:
+    """回调按钮：点击后由 QQ 推送 InteractionCreateEvent 到机器人。"""
+    return Button(
+        id=button_id,
+        render_data=RenderData(
+            label=label,
+            visited_label=label,
+            style=style,
+        ),
+        action=Action(
+            type=1,
+            permission=Permission(type=2),
+            data=data,
+            unsupport_tips="当前客户端不支持回调按钮，请更新 QQ 后重试。",
         ),
     )
 
@@ -148,13 +170,16 @@ BTN_ICON_TEST = command_button("test_icon", "图标再测", "/测试图标")
 BTN_QUOTATION = command_button("quotation", "发病一下", "/发病小作文")
 BTN_FORTUNE_DRAW = command_button("fortune_draw", "我也要抽签", "/今日运势")
 BTN_WIFE_AGAIN = command_button("wife_again", "再抽老婆", "/抽老婆")
+BTN_WIFE_RANK_TOTAL = command_button("wife_rank_total", "老婆总榜", "/老婆榜 总榜")
+BTN_WIFE_RANK_MONTH = command_button("wife_rank_month", "老婆月榜", "/老婆榜 月榜")
+BTN_CHECKIN = command_button("checkin", "签到", "/签到")
 BTN_QUOTATION_AGAIN = command_button("quotation_again", "再来一篇", "/发病小作文")
 BTN_EAT_AGAIN = command_button("whateat_eat_again", "换一个", "/今天吃什么", enter=True)
 BTN_DRINK_AGAIN = command_button("whateat_drink_again", "换一个", "/今天喝什么", enter=True)
 BTN_AI_REVIEW = command_button("ai_review", "AI复核", "/AI复核", enter=True)
 
 # ── Diana 玩法导航按钮 ──
-BTN_DIANA_STATUS = command_button("diana_nav_status", "看状态", "/然然状态")
+BTN_DIANA_STATUS = command_button("diana_nav_status", "状态", "/然然状态")
 BTN_DIANA_COSTUME = command_button("diana_nav_costume", "换装", "/换装")
 BTN_DIANA_HELP = command_button("diana_nav_help", "更多玩法", "/然然帮助")
 BTN_DIANA_FEED = command_button("diana_nav_feed", "投喂", "/然然帮助 投喂")
@@ -162,6 +187,10 @@ BTN_DIANA_PLAY = command_button("diana_nav_play", "玩耍", "/然然帮助 玩�
 BTN_DIANA_WORK = command_button("diana_nav_work", "打工", "/然然帮助 打工")
 BTN_DIANA_INTERACT = command_button("diana_nav_interact", "互动", "/然然帮助 互动")
 BTN_DIANA_DAILY = command_button("diana_nav_daily", "日常", "/然然帮助 日常")
+BTN_DIANA_COIN_RANK = command_button("diana_nav_coin_rank", "金币榜", "/金币榜")
+BTN_DIANA_GROUP_COIN_RANK = command_button(
+    "diana_nav_group_coin_rank", "群金币榜", "/本群金币榜"
+)
 
 # ── 外链按钮 ──
 BTN_USAGE_DOC = link_button("introduce", "使用说明", URL_USAGE_DOC)
@@ -180,6 +209,7 @@ BTN_WIFE = command_button("wife", "抽老婆", "/抽老婆")
 
 TC_FORTUNE = text_chain("/今日运势", "今日运势")
 TC_WIFE = text_chain("/抽老婆", "抽老婆")
+TC_WIFE_RANK = text_chain("/老婆榜", "老婆榜")
 TC_EAT = text_chain("/今天吃什么", "吃什么")
 TC_DRINK = text_chain("/今天喝什么", "喝什么")
 TC_QUOTATION = text_chain("/发病小作文", "发病小作文")
@@ -214,9 +244,13 @@ KB_COMMAND_CENTER = build_keyboard([
 ])
 
 KB_DIANA_NAV = build_keyboard([
-    [BTN_DIANA_STATUS, BTN_DIANA_COSTUME, BTN_DIANA_HELP],
-    [BTN_DIANA_FEED, BTN_DIANA_PLAY, BTN_DIANA_WORK],
-    [BTN_DIANA_INTERACT, BTN_DIANA_DAILY],
+    [BTN_DIANA_FEED, BTN_DIANA_WORK, BTN_DIANA_STATUS],
+    [BTN_DIANA_COIN_RANK, BTN_DIANA_GROUP_COIN_RANK, BTN_DIANA_HELP],
+    [BTN_MENU, BTN_CHECKIN],
+])
+
+KB_COIN_RANK = build_keyboard([
+    [BTN_MENU, BTN_DIANA_COIN_RANK, BTN_DIANA_GROUP_COIN_RANK],
 ])
 
 
@@ -249,6 +283,17 @@ def live_sub_all_button(names: list[str], prefix: str = "/订阅开播") -> Butt
     """"全部订阅/取消"按钮：把成员名单作为指令参数注入。"""
     label = "全部取消" if "取消" in prefix else "全部订阅"
     return command_button("live_sub_all", label, cmd(prefix, " ".join(names)))
+
+
+def wife_vote_button(image_name: str) -> Button:
+    """为一张老婆图片创建一键回调投票按钮。"""
+    digest = hashlib.sha1(image_name.encode("utf-8")).hexdigest()[:12]
+    return callback_button(
+        f"wife_vote_{digest}",
+        "投票",
+        f"{WIFE_VOTE_CALLBACK_PREFIX}{image_name}",
+        style=0,
+    )
 
 
 # ══════════════════ 完整 md 消息构造函数 ══════════════════
@@ -355,7 +400,7 @@ def _xiaoran_command_center_content() -> str:
         f"## {icon('我们是asoul.png', 28) or '📋'} 小然指令中心\n"
         "嘉然 Diana 的 QQ 群小助手\n\n"
         f"**{icon('开心-小恶魔.png') or '🎮'} 娱乐功能**\n"
-        f">{TC_FORTUNE} · {TC_WIFE} · {TC_EAT} · {TC_DRINK} · {TC_QUOTATION}\n\n"
+        f">{TC_FORTUNE} · {TC_WIFE} · {TC_WIFE_RANK} · {TC_EAT} · {TC_DRINK} · {TC_QUOTATION}\n\n"
         f"**{icon('喵喵-可爱.png') or '🐣'} 养然然**\n"
         f">{TC_CHECKIN} · {TC_STATUS} · {TC_COSTUME} · {TC_HELP}\n"
         f">日常互动：{TC_FEED} · {TC_PLAY} · {TC_WORK} · {TC_INTERACT}\n\n"

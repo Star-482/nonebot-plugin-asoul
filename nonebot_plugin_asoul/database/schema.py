@@ -122,4 +122,58 @@ CREATE TABLE IF NOT EXISTS follower_daily_base (
     PRIMARY KEY (uid, day)
 );
 CREATE INDEX IF NOT EXISTS idx_follower_base_time ON follower_daily_base(uid, fetched_at);
+
+-- Diana 金币排行榜：用户当前余额镜像（宠物存档仍是权威数据）
+CREATE TABLE IF NOT EXISTS diana_user_scores (
+    user_id TEXT PRIMARY KEY,
+    coins INTEGER NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_diana_user_scores_coins ON diana_user_scores(coins DESC);
+
+-- Diana 用户昵称：由参与玩法时的事件更新，仅用于榜单展示
+CREATE TABLE IF NOT EXISTS diana_user_profiles (
+    user_id TEXT PRIMARY KEY,
+    display_name TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+-- 已参与 Diana 玩法的群成员；QQ 机器人无法可靠枚举全体成员，故不等同于完整群成员名单
+CREATE TABLE IF NOT EXISTS diana_group_members (
+    group_openid TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    PRIMARY KEY (group_openid, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_diana_group_members_user ON diana_group_members(user_id);
+
+-- 群贡献金币流水：只记录群内正向获得的金币，群榜按最近 30 天聚合
+CREATE TABLE IF NOT EXISTS diana_group_coin_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_openid TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    coins INTEGER NOT NULL CHECK (coins > 0),
+    source TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_diana_group_coin_ledger_window
+    ON diana_group_coin_ledger(created_at, group_openid);
+
+-- 抽老婆投票流水：按图片文件名计票，同一用户每天对同图只能投一次
+CREATE TABLE IF NOT EXISTS wife_votes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    image_name TEXT NOT NULL,
+    voter_id TEXT NOT NULL,
+    vote_day TEXT NOT NULL,              -- Asia/Shanghai 自然日，YYYY-MM-DD
+    vote_month TEXT NOT NULL,            -- Asia/Shanghai 自然月，YYYY-MM
+    created_at TEXT NOT NULL,
+    UNIQUE(voter_id, vote_day, image_name)
+);
+CREATE INDEX IF NOT EXISTS idx_wife_votes_voter_day
+    ON wife_votes(voter_id, vote_day);
+CREATE INDEX IF NOT EXISTS idx_wife_votes_image
+    ON wife_votes(image_name);
+CREATE INDEX IF NOT EXISTS idx_wife_votes_month_image
+    ON wife_votes(vote_month, image_name);
 """

@@ -10,6 +10,8 @@ from .subscriptions import SubscriptionsRepo, UpstreamsRepo
 from .group_admin import GroupRecallRepo, GroupWelcomeRepo, WelcomeReviewRepo
 from .command_stats import CommandStatsRepo
 from .follower_stats import FollowerStatsRepo
+from .diana_ranking import DianaRankingRepo
+from .wife_votes import WifeVoteRepo
 
 __all__ = [
     "MessageStore",
@@ -25,4 +27,6 @@ __all__ = [
     "WelcomeReviewRepo",
     "CommandStatsRepo",
     "FollowerStatsRepo",
+    "DianaRankingRepo",
+    "WifeVoteRepo",
 ]

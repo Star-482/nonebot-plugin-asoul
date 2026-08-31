@@ -362,14 +362,22 @@ class DianaSession:
 
         # 事件后 30% 概率掉落金币
         coin_bonus = None
+        coin_bonus_amount = 0
         if random.random() < 0.3:
             bonus = random.randint(10, 20)
             self.pet.coins += bonus
             coin_bonus = f"🎁 运气不错！获得了 {bonus} 嘉心糖币！"
+            coin_bonus_amount = bonus
+
+        event_coin_gain = sum(
+            max(0, int(event.effects.get("coins", 0) or 0)) for event in events
+        )
 
 
         return {
             "coin_bonus": coin_bonus,
+            "coin_bonus_amount": coin_bonus_amount,
+            "event_coin_gain": event_coin_gain,
             "events": [{"id": e.id, "type": e.type, "name": e.name, "text": e.text}
                        for e in events],
             "event_texts": event_texts,
@@ -492,6 +500,15 @@ class DianaSession:
             save_pet(self.pet)
         except OSError:
             logger.exception("Diana save_pet failed for user=%s", self.user_id)
+            return
+        try:
+            # 宠物 JSON 是权威数据；SQLite 只维护金币榜的查询索引。
+            from ..database.repositories import DianaRankingRepo
+
+            DianaRankingRepo().upsert_user_balance(self.user_id, self.pet.coins)
+        except Exception:
+            # 榜单索引不可用不能影响宠物存档和正常互动，后续 /金币榜 会补齐索引。
+            logger.exception("Diana ranking index update failed for user=%s", self.user_id)
 
     def _stats_dict(self) -> dict:
         return {
@@ -579,6 +596,9 @@ async def _hook_trigger_events(session: DianaSession, item: Item, result: dict) 
         result["event_urls"] = tick_result["event_urls"]
     if tick_result["coin_bonus"]:
         result["coin_bonus"] = tick_result["coin_bonus"]
+        result["coin_bonus_amount"] = tick_result["coin_bonus_amount"]
+    if tick_result["event_coin_gain"]:
+        result["event_coin_gain"] = tick_result["event_coin_gain"]
 
 
 @DianaSession.on_post_action
