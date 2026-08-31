@@ -12,20 +12,27 @@ import random
 from pathlib import Path
 from typing import Literal
 
-from nonebot.adapters.qq import Message, MessageSegment
+from nonebot import on_notice
+from nonebot.adapters import Event
+from nonebot.adapters.qq import Bot, Message, MessageSegment
+from nonebot.adapters.qq.event import InteractionCreateEvent
 from nonebot.params import CommandArg
 from nonebot.plugin.on import on_command
+from nonebot.rule import Rule
 
 from ..config import config
 from ..database.repositories import WifeVoteRepo
 from ..markdown import (
+    BTN_CHECKIN,
     BTN_FORTUNE,
     BTN_MENU,
     BTN_WIFE_AGAIN,
     BTN_WIFE_RANK_MONTH,
     BTN_WIFE_RANK_TOTAL,
     URL_SUBMIT,
+    WIFE_VOTE_CALLBACK_PREFIX,
     build_keyboard,
+    icon,
     wife_vote_button,
 )
 from ..storage import get_bucket, KEY_PREFIX, manifest
@@ -98,6 +105,11 @@ def _safe_md(value: str) -> str:
     return value.replace("*", "＊").replace("_", "＿").replace("[", "［").replace("]", "］")
 
 
+def _title_icon(name: str, fallback: str) -> str:
+    """优先显示已同步的然然图标，图标缺失时保留 emoji 语义。"""
+    return icon(name, 28) or fallback
+
+
 def _rank_snapshot(image_name: str, valid_images: list[str]) -> tuple[tuple[int, int] | None, tuple[int, int] | None]:
     """查询图片在总榜和当月榜中的位置；榜单故障不影响正常抽取。"""
     try:
@@ -121,8 +133,8 @@ def _rank_text(total_rank: tuple[int, int] | None, month_rank: tuple[int, int] |
 
 def _wife_keyboard(image_name: str):
     return build_keyboard([
-        [wife_vote_button(image_name), BTN_WIFE_RANK_TOTAL, BTN_WIFE_RANK_MONTH],
-        [BTN_WIFE_AGAIN, BTN_FORTUNE, BTN_MENU],
+        [wife_vote_button(image_name), BTN_FORTUNE, BTN_CHECKIN],
+        [BTN_MENU, BTN_WIFE_AGAIN],
     ])
 
 
@@ -134,7 +146,7 @@ def _wife_content(
     md_image: str = "",
 ) -> str:
     body = (
-        "## 今日抽老婆\n"
+        f"## {_title_icon('心动-开心.png', '💗')} 今日抽老婆\n"
         f"你今日抽取的老婆是 **{_safe_md(_wife_name(image_name))}**\n\n"
         f"分类：{_safe_md(category)}{submission_note}\n\n"
         f"{rank_text}\n\n"
@@ -206,9 +218,24 @@ async def _():
     await random_wife_matcher.finish(message)
 
 
-wife_vote_matcher = on_command("老婆投票", priority=config.command_priority)
 wife_rank_matcher = on_command(
     "老婆榜", aliases={"抽老婆榜"}, priority=config.command_priority
+)
+
+
+def _is_wife_vote_callback(event: Event) -> bool:
+    """匹配抽老婆卡片上的投票回调，避免接管其他业务按钮。"""
+    if not isinstance(event, InteractionCreateEvent):
+        return False
+    resolved = event.data.resolved
+    return (
+        (resolved.button_id or "").startswith("wife_vote_")
+        and (resolved.button_data or "").startswith(WIFE_VOTE_CALLBACK_PREFIX)
+    )
+
+
+wife_vote_callback_matcher = on_notice(
+    rule=Rule(_is_wife_vote_callback), priority=1
 )
 
 
@@ -223,13 +250,13 @@ def _vote_result_content(
     used = result["used"]
     limit = result["limit"]
     if status == "success":
-        title = "# ❤️ 投票成功"
+        title = f"# {_title_icon('比心-爱你.png', '❤️')} 投票成功"
         detail = f"已投给 **{display_name}**！"
     elif status == "duplicate":
-        title = "# 已经投过啦"
+        title = f"# {_title_icon('得意-高兴-炫耀.png', '✨')} 已经投过啦"
         detail = f"你今天已经投过 **{display_name}**，可以把票留给其他老婆哦。"
     else:
-        title = "# 今日票数已用完"
+        title = f"# {_title_icon('垂头丧气-失落.png', '🥲')} 今日票数已用完"
         detail = "明天再来支持喜欢的老婆吧～"
     return "\n\n".join([
         title,
@@ -237,6 +264,44 @@ def _vote_result_content(
         f"> 今日已投：**{used}/{limit}** 票",
         _rank_text(total_rank, month_rank),
     ])
+
+
+def _wife_vote_keyboard():
+    return build_keyboard([
+        [BTN_WIFE_RANK_TOTAL, BTN_WIFE_RANK_MONTH],
+        [BTN_WIFE_AGAIN],
+    ])
+
+
+def _cast_wife_vote(voter_id: str, image_name: str) -> str:
+    """校验目标、投票并构造结果；供指令与回调按钮共用。"""
+    if not image_name or Path(image_name).name != image_name:
+        return (
+            f"# {_title_icon('绷不住了-难绷-无语.png', '⚠️')} 投票目标无效\n\n"
+            "请从抽老婆卡片下方点击“投票”按钮。"
+        )
+
+    image_names = _wife_image_names()
+    if image_name not in image_names:
+        return (
+            f"# {_title_icon('垂头丧气-失落.png', '🥲')} 图片已失效\n\n"
+            "这张老婆已经不在图库中了，换一张投票吧。"
+        )
+
+    try:
+        result = _vote_repo.cast_vote(
+            voter_id, image_name, WIFE_VOTE_DAILY_LIMIT
+        )
+        total_rank, month_rank = _rank_snapshot(image_name, image_names)
+    except Exception:
+        logger.exception("抽老婆投票失败 image=%s voter=%s", image_name, voter_id)
+        return (
+            f"# {_title_icon('绷不住了-难绷-无语.png', '⚠️')} 投票失败\n\n"
+            "服务器开小差了，请稍后再试。"
+        )
+    return _vote_result_content(
+        result["status"], image_name, result, total_rank, month_rank
+    )
 
 
 def _rank_period(arg: str) -> RankPeriod | None:
@@ -292,15 +357,23 @@ async def _build_wife_rank_visuals(rows: list[dict]) -> str:
 def _format_wife_board(
     period: RankPeriod, rows: list[dict], top_visuals: str = ""
 ) -> str:
-    title = "## 👑 老婆总榜" if period == "total" else "## 🗓️ 老婆月榜"
-    subtitle = "累计全部有效投票" if period == "total" else "统计本月有效投票"
-    lines = [title, "", f"> {subtitle} · 仅展示当前图库中的图片", ""]
+    title = (
+        f"## {_title_icon('嘉速心动.png', '👑')} 老婆总榜"
+        if period == "total"
+        else f"## {_title_icon('好想法.png', '🗓️')} 老婆月榜"
+    )
+    lines = [title, ""]
     if not rows:
-        lines.append("> 暂时还没有投票，抽到喜欢的老婆就投给她吧～")
+        lines.append("暂时还没有投票，抽到喜欢的老婆就投给她吧～")
         return "\n".join(lines)
     if top_visuals:
-        lines.extend(["### 🏆 TOP 3", "", top_visuals, ""])
-    for rank, row in enumerate(rows, start=1):
+        lines.extend([top_visuals, ""])
+        text_rows = rows[3:]
+        text_start = 4
+    else:
+        text_rows = rows
+        text_start = 1
+    for rank, row in enumerate(text_rows, start=text_start):
         image_name = str(row["image_name"])
         info = _get_wife_info(image_name) or {}
         category = _safe_md(str(info.get("category") or "未分类"))
@@ -310,33 +383,22 @@ def _format_wife_board(
     return "\n".join(lines)
 
 
-@wife_vote_matcher.handle()
-async def _(event, args: Message = CommandArg()):
-    image_name = args.extract_plain_text().strip()
-    if not image_name:
-        await wife_vote_matcher.finish("请从抽老婆卡片下方点击“投给她”按钮哦。")
-        return
-    if Path(image_name).name != image_name:
-        await wife_vote_matcher.finish("投票目标无效，请从抽老婆卡片下方点击按钮。")
-        return
-    image_names = _wife_image_names()
-    if image_name not in image_names:
-        await wife_vote_matcher.finish("这张老婆已经不在图库中了，换一张投票吧。")
+@wife_vote_callback_matcher.handle()
+async def _(bot: Bot, event: InteractionCreateEvent):
+    """确认 QQ 回调后，直接完成投票，不要求用户再发送指令。"""
+    try:
+        await bot.put_interaction(interaction_id=event.id, code=0)
+    except Exception:
+        logger.exception("确认老婆投票回调失败 id=%s", event.id)
+        await wife_vote_callback_matcher.send("❌ 投票回调确认失败，请稍后重试。")
         return
 
-    result = _vote_repo.cast_vote(
-        event.get_user_id(), image_name, WIFE_VOTE_DAILY_LIMIT
-    )
-    total_rank, month_rank = _rank_snapshot(image_name, image_names)
-    content = _vote_result_content(
-        result["status"], image_name, result, total_rank, month_rank
-    )
-    keyboard = build_keyboard([
-        [BTN_WIFE_RANK_TOTAL, BTN_WIFE_RANK_MONTH],
-        [BTN_WIFE_AGAIN],
-    ])
-    await wife_vote_matcher.finish(
-        MessageSegment.markdown(content) + MessageSegment.keyboard(keyboard)
+    callback_data = event.data.resolved.button_data or ""
+    image_name = callback_data.removeprefix(WIFE_VOTE_CALLBACK_PREFIX)
+    content = _cast_wife_vote(event.get_user_id(), image_name)
+    await wife_vote_callback_matcher.send(
+        MessageSegment.markdown(content)
+        + MessageSegment.keyboard(_wife_vote_keyboard())
     )
 
 

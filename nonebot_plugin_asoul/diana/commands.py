@@ -36,7 +36,7 @@ from .ranking import (
     record_checkin_coin_gain,
     record_interaction_coin_gain,
 )
-from ..markdown import KB_DIANA_NAV, text_chain
+from ..markdown import KB_COIN_RANK, KB_DIANA_NAV, icon, text_chain
 
 # ── stat 变化的中文标签和图标 ──
 _CHANGE_LABELS = [
@@ -333,7 +333,8 @@ def _build_checkin_success_msg(
     is_dm: bool,
 ) -> str:
     """构建签到成功消息."""
-    lines = ["✅ **签到成功！**", ""]
+    title_icon = icon("嘉人们-打招呼.png", 28) or "✅"
+    lines = [f"{title_icon} **签到成功！**", ""]
     if not is_dm:
         lines.append(f"🏅 本群第 **{group_rank}** 个签到")
     lines.append(f"🌍 全用户第 **{global_rank}** 个签到")
@@ -519,7 +520,7 @@ async def _(event: Event, matcher: Matcher):
     rows, mine = get_global_coin_board(event, event.get_user_id(), session.pet.coins)
     await matcher.send(
         MessageSegment.markdown(format_global_coin_board(rows, mine))
-        + MessageSegment.keyboard(KB_DIANA_NAV)
+        + MessageSegment.keyboard(KB_COIN_RANK)
     )
 
 
@@ -534,7 +535,7 @@ async def _(event: Event, matcher: Matcher):
     )
     await matcher.send(
         MessageSegment.markdown(format_group_coin_board(members, groups, current_group))
-        + MessageSegment.keyboard(KB_DIANA_NAV)
+        + MessageSegment.keyboard(KB_COIN_RANK)
     )
 
 @diana_status.handle()

@@ -31,6 +31,7 @@ URL_SUBMIT = "https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ"  # 点我投稿
 URL_GROUP = "https://qm.qq.com/q/bTIMDcbTkA"                    # 交流群
 URL_PIXEL_BOARD = "https://pixel-asoul.club/"                   # A手像素画板
 URL_LIVE_DATA = "https://live.pixel-asoul.club"                 # 直播数据站
+WIFE_VOTE_CALLBACK_PREFIX = "asoul:wife:vote:"
 
 
 # ══════════════════ 构造器（适配器模型的薄封装） ══════════════════
@@ -73,6 +74,26 @@ def command_button(
             reply=reply,
             enter=enter,
             unsupport_tips=f"请手动发送：{command}",
+        ),
+    )
+
+
+def callback_button(
+    button_id: str, label: str, data: str, *, style: Literal[0, 1] = 1
+) -> Button:
+    """回调按钮：点击后由 QQ 推送 InteractionCreateEvent 到机器人。"""
+    return Button(
+        id=button_id,
+        render_data=RenderData(
+            label=label,
+            visited_label=label,
+            style=style,
+        ),
+        action=Action(
+            type=1,
+            permission=Permission(type=2),
+            data=data,
+            unsupport_tips="当前客户端不支持回调按钮，请更新 QQ 后重试。",
         ),
     )
 
@@ -151,13 +172,14 @@ BTN_FORTUNE_DRAW = command_button("fortune_draw", "我也要抽签", "/今日运
 BTN_WIFE_AGAIN = command_button("wife_again", "再抽老婆", "/抽老婆")
 BTN_WIFE_RANK_TOTAL = command_button("wife_rank_total", "老婆总榜", "/老婆榜 总榜")
 BTN_WIFE_RANK_MONTH = command_button("wife_rank_month", "老婆月榜", "/老婆榜 月榜")
+BTN_CHECKIN = command_button("checkin", "签到", "/签到")
 BTN_QUOTATION_AGAIN = command_button("quotation_again", "再来一篇", "/发病小作文")
 BTN_EAT_AGAIN = command_button("whateat_eat_again", "换一个", "/今天吃什么", enter=True)
 BTN_DRINK_AGAIN = command_button("whateat_drink_again", "换一个", "/今天喝什么", enter=True)
 BTN_AI_REVIEW = command_button("ai_review", "AI复核", "/AI复核", enter=True)
 
 # ── Diana 玩法导航按钮 ──
-BTN_DIANA_STATUS = command_button("diana_nav_status", "看状态", "/然然状态")
+BTN_DIANA_STATUS = command_button("diana_nav_status", "状态", "/然然状态")
 BTN_DIANA_COSTUME = command_button("diana_nav_costume", "换装", "/换装")
 BTN_DIANA_HELP = command_button("diana_nav_help", "更多玩法", "/然然帮助")
 BTN_DIANA_FEED = command_button("diana_nav_feed", "投喂", "/然然帮助 投喂")
@@ -165,6 +187,10 @@ BTN_DIANA_PLAY = command_button("diana_nav_play", "玩耍", "/然然帮助 玩�
 BTN_DIANA_WORK = command_button("diana_nav_work", "打工", "/然然帮助 打工")
 BTN_DIANA_INTERACT = command_button("diana_nav_interact", "互动", "/然然帮助 互动")
 BTN_DIANA_DAILY = command_button("diana_nav_daily", "日常", "/然然帮助 日常")
+BTN_DIANA_COIN_RANK = command_button("diana_nav_coin_rank", "金币榜", "/金币榜")
+BTN_DIANA_GROUP_COIN_RANK = command_button(
+    "diana_nav_group_coin_rank", "群金币榜", "/本群金币榜"
+)
 
 # ── 外链按钮 ──
 BTN_USAGE_DOC = link_button("introduce", "使用说明", URL_USAGE_DOC)
@@ -218,9 +244,13 @@ KB_COMMAND_CENTER = build_keyboard([
 ])
 
 KB_DIANA_NAV = build_keyboard([
-    [BTN_DIANA_STATUS, BTN_DIANA_COSTUME, BTN_DIANA_HELP],
-    [BTN_DIANA_FEED, BTN_DIANA_PLAY, BTN_DIANA_WORK],
-    [BTN_DIANA_INTERACT, BTN_DIANA_DAILY],
+    [BTN_DIANA_FEED, BTN_DIANA_WORK, BTN_DIANA_STATUS],
+    [BTN_DIANA_COIN_RANK, BTN_DIANA_GROUP_COIN_RANK, BTN_DIANA_HELP],
+    [BTN_MENU, BTN_CHECKIN],
+])
+
+KB_COIN_RANK = build_keyboard([
+    [BTN_MENU, BTN_DIANA_COIN_RANK, BTN_DIANA_GROUP_COIN_RANK],
 ])
 
 
@@ -256,10 +286,13 @@ def live_sub_all_button(names: list[str], prefix: str = "/订阅开播") -> Butt
 
 
 def wife_vote_button(image_name: str) -> Button:
-    """为一张老婆图片创建一键投票按钮。"""
+    """为一张老婆图片创建一键回调投票按钮。"""
     digest = hashlib.sha1(image_name.encode("utf-8")).hexdigest()[:12]
-    return command_button(
-        f"wife_vote_{digest}", "投票", cmd("/老婆投票", image_name), enter=True
+    return callback_button(
+        f"wife_vote_{digest}",
+        "投票",
+        f"{WIFE_VOTE_CALLBACK_PREFIX}{image_name}",
+        style=0,
     )
 
 
