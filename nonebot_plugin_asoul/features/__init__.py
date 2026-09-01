@@ -14,4 +14,4 @@ from . import (  # noqa: F401
 from .fortune_manager import fortune_manager, build_fortune_md, FortuneManager  # noqa: F401
 from .whateat import build_whateat_msg  # noqa: F401
 from .random_wife import get_random_wife_md_message  # noqa: F401
-from .activity import save_img_activity, save_json_activity, get_relative_content  # noqa: F401
+from .activity import get_relative_content, schedule_service  # noqa: F401

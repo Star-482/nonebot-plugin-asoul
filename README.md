@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | `/发病小作文` | `/发病` | 随机发送一篇嘉然小作文（Markdown 卡片） |
 | `/今日运势` | `/抽签` | 每人每日一次，生成专属运势卡（Markdown 卡片） |
-| `/本周日程` | `/日程` | 查看今天与明天的安排，附日程图 |
+| `/本周日程` | `/日程` | 查看从枝江站自动同步并上传 COS 的本周日程图与今日安排 |
 | `/关于小然` | `/小然`、`/关于然然` | 嘉然 & Bot 介绍（Markdown + 内联按钮） |
 | `/抽老婆` | — | 随机抽取一张图片（Markdown 卡片） |
 | `/老婆榜 [总榜\|月榜]` | `/抽老婆榜` | 查看抽老婆图片的总榜或当月票数榜 |
@@ -52,7 +52,6 @@
 
 ### 管理员（SUPERUSER）
 
-- `/添加日程` — 发图片即更新本周日程图；发 JSON 文本即合并到 `activity.json`
 - `/统计总览`、`/统计排行`、`/统计明细` — 查看插件命令使用情况（存储于 SQLite `command_stats` 表）
 - `/订阅全览` — 跨群查看所有开播订阅
 - `/图床自检` — 验证 COS 凭据 / endpoint / 公网 URL 三件套
@@ -95,7 +94,10 @@ nonebot.load_plugin("nonebot_plugin_asoul")
 data/
 ├── asoul/
 │   ├── quotation.json            # 发病小作文（首次启动会自动下载）
-│   ├── activity/                 # 周日程 (new_activity.jpg + activity.json)
+│   ├── activity/                 # 自动日程缓存与周历素材
+│   │   ├── 嘉然.png / 贝拉.png / 乃琳.png / 心宜.png / 思诺.png（原始立绘参考）
+│   │   ├── schedule_assets/      # 五人横幅海报与单播二创小图
+│   │   └── schedule.json / schedule.png（启动后自动生成）
 │   ├── live_subscription/        # 开播订阅持久化（自动生成）
 │   │   ├── upstreams.json        # 预定义 up主 UID → 名称
 │   │   └── subscriptions.json    # 群订阅关系
@@ -131,6 +133,8 @@ data/
 | `whateat_cd` | `10` | 吃 / 喝什么的全局冷却（秒） |
 | `whateat_max` | `0` | 每用户每日上限，`0` 表示不限 |
 | `live_poll_interval` | `60` | B 站开播轮询间隔（秒） |
+| `schedule_sync_interval` | `3600` | 枝江 ICS 日程同步间隔（秒） |
+| `schedule_http_timeout` | `10.0` | 枝江 ICS 日程请求超时（秒） |
 | `live_poll_http_timeout` | `10.0` | B 站开播轮询 HTTP 超时（秒） |
 | `diana_saves_dir` | `diana/saves` | 嘉然宠物用户存档子目录（相对于 data_path） |
 | `cos_id` / `cos_key` | — | 腾讯云 COS 的 SecretId / SecretKey（S3 兼容凭据） |
@@ -145,6 +149,8 @@ data/
 | `violation_ai_review_max_records` | `20` | 单次 AI 复核发送的最近违禁记录数 |
 
 > `diana_saves_dir` 控制嘉然宠物用户存档位置，默认 `diana/saves`（相对于 `data_path`）；签到排名数据固定写在 `diana/checkin/` 下。嘉然宠物的 data（YAML/模板）与 assets（服装立绘）已打包在 `nonebot_plugin_asoul/diana/` 包内，不再需要额外的外部配置。
+
+> 日程固定从 `https://asoul.love/calendar.ics` 拉取：启动时立即同步，之后按 `schedule_sync_interval` 更新。接口仅返回当天起的日程：同步会以远端数据更新今天及以后，并补回本地缓存中本周今天之前的未取消活动，以便周历始终完整显示当前自然周；上周及更早的活动会在下次成功同步时移除。每次成功渲染的周历图会上传至 COS，并以 QQ Markdown 图片发送；上传失败会保留本地图片作为降级路径。请求或解析失败时会继续使用最近一次成功生成的 `activity/schedule.json` 与 `activity/schedule.png`。周历会读取 `activity/schedule_assets/` 中的五人横幅与成员二创 PNG；只有单播活动会嵌入对应成员小图，素材缺失不影响同步。
 
 > 抽老婆卡片显示该图片的总榜和本月排名；点击“投票”会直接完成投票，无需再发送指令。投票全局生效，默认每人每天 3 票、同一图片每天只能投一次；榜单仅展示当前仍在图库中的图片。
 
