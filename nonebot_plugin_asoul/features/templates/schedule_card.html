@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>本周日程</title>
+<style>
+  :root {
+    --ink: #262230;
+    --muted: #7d7688;
+    --line: #e8e5eb;
+    --paper: #ffffff;
+    --canvas: #f3f1f4;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--canvas);
+  }
+
+  body {
+    width: 1800px;
+    min-height: 1120px;
+    padding: 34px;
+    overflow-x: hidden;
+    color: var(--ink);
+    font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  }
+
+  .schedule {
+    display: flex;
+    min-height: 1052px;
+    overflow: hidden;
+    border: 1px solid #dedbe2;
+    border-radius: 28px;
+    flex-direction: column;
+    background: var(--paper);
+    box-shadow: 0 20px 54px rgba(45, 37, 57, 0.12);
+  }
+
+  .hero {
+    position: relative;
+    height: 274px;
+    min-height: 274px;
+    overflow: hidden;
+    border-bottom: 1px solid #dedbe2;
+    background: #fbf6f1;
+  }
+
+  .hero-art {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: 100%;
+    object-fit: contain;
+    object-position: right center;
+  }
+
+  .hero-copy {
+    position: absolute;
+    z-index: 2;
+    top: 20px;
+    left: 46px;
+    width: 480px;
+    padding: 24px 32px 23px;
+    border: 1px solid rgba(72, 61, 80, 0.14);
+    border-radius: 20px;
+    background: #fffdf9;
+    box-shadow: 0 14px 34px rgba(62, 49, 68, 0.10);
+  }
+
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #766e7d;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+  }
+
+  .eyebrow::before {
+    width: 29px;
+    height: 4px;
+    border-radius: 99px;
+    content: "";
+    background: #c93773;
+  }
+
+  h1 {
+    margin: 11px 0 12px;
+    color: #282331;
+    font-size: 56px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.07em;
+  }
+
+  .week-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .week-label {
+    padding: 4px 9px;
+    border-radius: 6px;
+    color: #fff;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    background: #576690;
+  }
+
+  .week-range {
+    color: #403848;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+  }
+
+  .sync-note {
+    margin-top: 12px;
+    color: #97909d;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .calendar {
+    display: grid;
+    flex: 1;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    background: #fff;
+  }
+
+  .day {
+    min-width: 0;
+    padding: 0 12px 22px;
+    border-right: 1px solid var(--line);
+    background: #fff;
+  }
+
+  .day:last-child { border-right: 0; }
+  .day.today { background: #fbfaff; }
+
+  .day-head {
+    position: relative;
+    height: 100px;
+    margin: 0 -12px 14px;
+    padding: 19px 16px 13px;
+    border-bottom: 1px solid var(--line);
+    background: #fff;
+  }
+
+  .day.today .day-head {
+    background: #f5f1fc;
+  }
+
+  .day.today .day-head::after {
+    position: absolute;
+    right: 16px;
+    bottom: -1px;
+    left: 16px;
+    height: 4px;
+    border-radius: 4px 4px 0 0;
+    content: "";
+    background: #7252c0;
+  }
+
+  .date-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .date {
+    color: #2d2835;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 29px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+
+  .weekday {
+    color: #7f7888;
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  .day-meta {
+    display: inline-block;
+    margin-top: 8px;
+    color: #b0aab5;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+  }
+
+  .today-label {
+    margin-top: 7px;
+    padding: 2px 8px;
+    border: 1px solid #7252c0;
+    border-radius: 99px;
+    color: #7252c0;
+    font-size: 10px;
+    font-weight: 900;
+    background: #fff;
+  }
+
+  .event {
+    --accent: #766b91;
+    --event-ink: #403852;
+    position: relative;
+    min-height: 118px;
+    margin-bottom: 11px;
+    overflow: hidden;
+    padding: 14px 12px 12px 18px;
+    border: 1px solid #e8e5eb;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 5px 13px rgba(45, 38, 54, 0.06);
+  }
+
+  .event.has-chibi {
+    min-height: 138px;
+    padding-right: 84px;
+  }
+
+  .event::before {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 6px;
+    content: "";
+    background: var(--accent);
+  }
+
+  .event-top {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .time {
+    color: var(--event-ink);
+    font-family: "Segoe UI", sans-serif;
+    font-size: 20px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .type {
+    max-width: 70px;
+    overflow: hidden;
+    padding: 3px 7px;
+    border: 1px solid color-mix(in srgb, var(--accent) 38%, #ffffff);
+    border-radius: 99px;
+    color: var(--event-ink);
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: #fff;
+  }
+
+  .event-title {
+    position: relative;
+    z-index: 2;
+    display: -webkit-box;
+    overflow: hidden;
+    color: #282431;
+    font-size: 17px;
+    font-weight: 900;
+    line-height: 1.36;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .detail {
+    position: relative;
+    z-index: 2;
+    display: -webkit-box;
+    margin-top: 5px;
+    overflow: hidden;
+    color: #77717e;
+    font-size: 14px;
+    line-height: 1.38;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .event-foot {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    min-height: 16px;
+    align-items: center;
+    margin-top: 9px;
+    gap: 7px;
+  }
+
+  .member-dots {
+    display: flex;
+    gap: 3px;
+  }
+
+  .member-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  .performers {
+    min-width: 0;
+    overflow: hidden;
+    color: #938d99;
+    font-size: 10px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .event-chibi {
+    position: absolute;
+    z-index: 1;
+    right: -2px;
+    bottom: -11px;
+    width: 84px;
+    height: 126px;
+    object-fit: contain;
+    object-position: center bottom;
+    filter: drop-shadow(0 4px 4px rgba(42, 34, 49, 0.14));
+  }
+
+  .empty {
+    display: flex;
+    height: 145px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 9px;
+    color: #b2adb7;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .empty::before {
+    width: 8px;
+    height: 8px;
+    border: 1px solid #c7c2cc;
+    border-radius: 50%;
+    content: "";
+  }
+
+  .footer {
+    display: flex;
+    height: 54px;
+    min-height: 54px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 29px;
+    border-top: 1px solid var(--line);
+    color: #99929f;
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    background: #faf9fa;
+  }
+
+  .footer-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: #504858;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+  }
+
+  .footer-title::before {
+    width: 22px;
+    height: 4px;
+    border-radius: 99px;
+    content: "";
+    background: #c93773;
+  }
+</style>
+</head>
+<body>
+  <main class="schedule">
+    <header class="hero">
+      {% if header_poster_uri %}
+      <img class="hero-art" src="{{ header_poster_uri }}" alt="">
+      {% endif %}
+      <div class="hero-copy">
+        <div class="eyebrow">ZHIJIANG WEEKLY SCHEDULE</div>
+        <h1>本周日程</h1>
+        <div class="week-line">
+          <span class="week-label">WEEK</span>
+          <span class="week-range">{{ week_range }}</span>
+        </div>
+        <div class="sync-note">上海时间 · 自动同步 · {{ generated_at }} 更新</div>
+      </div>
+    </header>
+
+    <section class="calendar">
+      {% for day in calendar_days %}
+      <article class="day{% if day.is_today %} today{% endif %}">
+        <div class="day-head">
+          <div class="date-row">
+            <span class="date">{{ day.date }}</span>
+            <span class="weekday">{{ day.weekday }}</span>
+          </div>
+          {% if day.is_today %}
+          <span class="today-label">今天</span>
+          {% else %}
+          <span class="day-meta">DAY {{ "%02d"|format(loop.index) }}</span>
+          {% endif %}
+        </div>
+
+        {% for event in day.events %}
+        <div
+          class="event{% if event.chibi_uri %} has-chibi{% endif %}"
+          style="--accent: {{ event.accent }}; --event-ink: {{ event.ink }};"
+        >
+          <div class="event-top">
+            <span class="time">{{ event.time }}</span>
+            <span class="type">{{ event.type }}</span>
+          </div>
+          <div class="event-title">{{ event.title }}</div>
+          {% if event.detail %}<div class="detail">{{ event.detail }}</div>{% endif %}
+          <div class="event-foot">
+            <span class="member-dots">
+              {% for dot in event.member_dots %}
+              <span class="member-dot" style="background: {{ dot }};"></span>
+              {% endfor %}
+            </span>
+            <span class="performers">{{ event.performers or "A-SOUL" }}</span>
+          </div>
+          {% if event.chibi_uri %}
+          <img class="event-chibi" src="{{ event.chibi_uri }}" alt="">
+          {% endif %}
+        </div>
+        {% endfor %}
+
+        {% if not day.events %}<div class="empty">暂无安排</div>{% endif %}
+      </article>
+      {% endfor %}
+    </section>
+
+    <footer class="footer">
+      <span class="footer-title">枝江日程</span>
+      <span>数据来源 asoul.love/calendar.ics · 每小时自动刷新</span>
+    </footer>
+  </main>
+</body>
+</html>

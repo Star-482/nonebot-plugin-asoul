@@ -27,6 +27,10 @@ class Config(BaseModel):
     live_poll_interval: int = 60
     live_poll_http_timeout: float = 10.0
 
+    # 枝江日程（固定从 asoul.love 的 ICS 日历同步）
+    schedule_sync_interval: int = 3600
+    schedule_http_timeout: float = 10.0
+
     # ── 直播数据：粉丝统计（5 人粉丝数，每日基准 + 内存缓存）──
     follower_poll_interval: int = 600    # 每 10 分钟定时刷新内存缓存（不写库）
     follower_cache_ttl: int = 600        # 命令查询时缓存的新鲜度（秒），超时才现场调 API

@@ -126,8 +126,18 @@ class COSBucket:
     # ── 主路径 1：静态文件懒加载 ──
 
     async def get_or_upload_file(
-        self, local_path: Path, *, prefix: str
+        self,
+        local_path: Path,
+        *,
+        prefix: str,
+        force_upload_on_manifest_miss: bool = False,
     ) -> Optional[str]:
+        """获取静态文件 URL，必要时上传。
+
+        ``force_upload_on_manifest_miss`` 适用于会覆盖同名对象的动态产物。
+        当本地 manifest 丢失时，即使 COS 已存在同名对象，也上传当前文件，
+        避免把远端旧内容误登记为本地新版本。
+        """
         local_path = Path(local_path)
         if not local_path.exists():
             logger.warning(f"本地文件不存在：{local_path}")
@@ -142,6 +152,9 @@ class COSBucket:
 
         # sha 漂移（manifest 命中但哈希不匹配）→ 无条件重新上传
         if cached:
+            return await self._do_upload_file(local_path, key, local_sha)
+
+        if force_upload_on_manifest_miss:
             return await self._do_upload_file(local_path, key, local_sha)
 
         # manifest miss → 尝试从 COS 恢复（HEAD 读元数据），避免重复上传
